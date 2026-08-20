@@ -63,11 +63,17 @@ function toneOf(code) {
 }
 
 function buildAnswer(type, analysis) {
+  return analysis.isAssignment
+    ? buildAssignmentAnswer(type, analysis)
+    : buildSceneAnswer(type, analysis);
+}
+
+/* ── 과제형: 답변 축을 따라 정리된 "예상 정답" ───────────────── */
+function buildAssignmentAnswer(type, analysis) {
   const [dom, aux, , inf] = type.stack;
   const topic = analysis.topic;
   const tone = toneOf(type.code);
 
-  /* 답변 축별 불릿 */
   const lensDom = FUNCTIONS[dom].lens;
   const lensAux = FUNCTIONS[aux].lens;
   const bullets = analysis.axes.map((axis, i) => {
@@ -75,9 +81,6 @@ function buildAnswer(type, analysis) {
     return { label: axis.label, text: `${lens} 관점에서 ${axis.verb}` };
   });
 
-  const summary = `${FUNC_OUTPUT[dom]}`;
-
-  /* 주기능이 같은 유형(예: ISTJ/ISFJ)끼리 답이 똑같아 보이지 않도록 유형 고유 문장을 섞는다 */
   const kw = type.keywords.slice(0, 2);
   const flavor = `${kw.join('·')}${josa(kw[kw.length - 1], '이/가')} 강한 편이라, ${type.strengths[0]}.`;
 
@@ -87,16 +90,57 @@ function buildAnswer(type, analysis) {
     `그래서 최종 답은 ${FUNC_OUTPUT[dom]}${josa(FUNC_OUTPUT[dom], '으로/로')} 나온다. ` +
     `특히 ${flavor}`;
 
-  const quote = `${tone.open} ${quoteFor(type, analysis)}`;
-
   return {
-    summary,
+    summary: FUNC_OUTPUT[dom],
     body,
     bullets,
-    quote,
+    quote: `${tone.open} ${QUOTE_TEMPLATES[dom](topic)}`,
     tone: tone.style,
     trap: FUNC_TRAP[inf],
     lens: lensDom,
+    decision: null,
+  };
+}
+
+/* ── 일상형: 질문에 대한 "실제 대답"이 중심 ─────────────────── */
+function buildSceneAnswer(type, analysis) {
+  const [dom, aux, , inf] = type.stack;
+  const scene = analysis.scene;
+  const tone = toneOf(type.code);
+  const decision = decideFor(type, analysis.options);
+
+  /* 이 유형이 실제로 내놓는 답 */
+  let verdict = scene.verdict[dom];
+  if (decision) {
+    const line = CHOICE_LINE[dom]
+      .replace(/\{PICK\}/g, decision.pick)
+      .replace(/\{OTHER\}/g, decision.other);
+    verdict = `${line} ${verdict}`;
+  }
+  verdict = `${verdict} ${AUX_TAIL[aux]}`;
+
+  const kw = type.keywords.slice(0, 2);
+  const body =
+    `${type.code}${josa(type.code, '는/는')} ${scene.approach[dom]}. ` +
+    `그다음 ${SUPPORT_LINE[aux]}. ` +
+    `${kw.join('·')}${josa(kw[kw.length - 1], '이/가')} 강한 유형이라 이 상황에서도 그게 그대로 나온다.`;
+
+  const bullets = [
+    { label: '접근', text: scene.approach[dom] },
+    { label: '보완', text: SUPPORT_LINE[aux] },
+  ];
+  if (decision) bullets.unshift({ label: '선택', text: decision.vote });
+
+  return {
+    summary: decision ? decision.vote : scene.label + '에서의 반응',
+    body,
+    bullets,
+    quote: `${tone.open} ${verdict}`,
+    verdict,
+    tone: tone.style,
+    trap: FUNC_TRAP[inf],
+    lens: FUNCTIONS[dom].lens,
+    decision,
   };
 }
 
@@ -111,10 +155,6 @@ const QUOTE_TEMPLATES = {
   Fi: (t) => `"${t}"에서 제일 손해 보는 사람이 누군지는 꼭 넣었으면 좋겠어.`,
   Fe: (t) => `"${t}" 다들 어떻게 생각해? 일단 한 명씩 의견 듣고 갈게!`,
 };
-
-function quoteFor(type, analysis) {
-  return QUOTE_TEMPLATES[type.stack[0]](analysis.topic);
-}
 
 /* 유형별 최종 카드 데이터 */
 function buildTypeCard(type, analysis, assignment) {

@@ -1,0 +1,411 @@
+/* bymbti — 상황(Scene) 판별
+ * "지구 온난화 조사해서 발표하시오"도, "오늘 짜장면 먹을까 짬뽕 먹을까"도 답해야 한다.
+ * 질문이 어떤 상황인지 먼저 정하고, 그 상황에 맞는 포지션과 답변 템플릿을 쓴다.
+ */
+
+/* ── 양자택일 선택지 추출 ────────────────────────────────────── */
+const TIME_PREFIX = /^(?:오늘|내일|모레|지금|이번\s*주|이번\s*주말|주말에|저녁에|점심에|아침에|밤에|우리|나|난|야)\s+/;
+
+/* "챙길까" → "챙기기" : ㄹ 받침을 떼고 -기 를 붙인다 */
+function toNoun(ending) {
+  let stem = ending.replace(/까$/, '');
+  if (/을$/.test(stem)) {
+    stem = stem.slice(0, -1);            // 먹을 → 먹
+  } else {
+    const last = stem.slice(-1);
+    const c = last.charCodeAt(0);
+    if (c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 === 8) {   // 받침이 ㄹ
+      stem = stem.slice(0, -1) + String.fromCharCode(c - 8);        // 길 → 기
+    }
+  }
+  return `${stem}기`;
+}
+
+function cleanOption(s) {
+  let t = String(s).trim().replace(/[?？.!,]+$/, '').replace(TIME_PREFIX, '');
+  t = t.replace(/^(?:그럼|근데|아니|음|이거|그거|저거|이걸|그걸|이건|그건)\s+/, '');
+  if (t.length > 18) t = t.slice(0, 18) + '…';
+  return t.trim();
+}
+
+function extractOptions(text) {
+  const q = text.trim().replace(/\s+/g, ' ');
+  let m;
+
+  /* "A 할까 말까" — 챙길까 → 챙기기, 먹을까 → 먹기 */
+  m = q.match(/^(.*?)([^\s]+까)\s*말까/);
+  if (m) {
+    const verb = toNoun(m[2]);
+    const obj = m[1].trim().split(/\s+/).slice(-1)[0] || '';
+    const subject = cleanOption(`${obj} ${verb}`);
+    return [subject, `안 ${verb}`];
+  }
+
+  /* "A 먹을까 B 먹을까" — 같은 어미가 두 번 */
+  m = q.match(/(.+?)\s*([가-힣]{1,5}까)\s+(.+?)\s*\2/);
+  if (m) return [cleanOption(m[1]), cleanOption(m[3])];
+
+  /* "A vs B" */
+  m = q.match(/(.+?)\s*(?:vs\.?|VS\.?|Vs\.?)\s*(.+)/);
+  if (m) return [cleanOption(m[1]), cleanOption(m[2])];
+
+  /* "A랑 B 중에" / "A와 B 중" */
+  m = q.match(/(.+?)(?:이랑|랑|하고|와|과)\s*(.+?)\s*중(?:에|에서)?/);
+  if (m) return [cleanOption(m[1]), cleanOption(m[2])];
+
+  /* "A 아니면 B" */
+  m = q.match(/(.+?)\s*아니면\s*(.+)/);
+  if (m) return [cleanOption(m[1]), cleanOption(m[2])];
+
+  return null;
+}
+
+/* ── 양자택일 상황에서 각 유형이 실제로 뭘 고르는지 ───────────── */
+function hashCode(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = ((h * 31) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+const THIRD_WAY = '둘 다 / 제3의 길';
+
+function decideFor(type, options) {
+  if (!options) return null;
+  const dom = type.stack[0];
+  const i = hashCode(type.code + '|' + options.join('|')) % 2;
+  const pick = options[i];
+  const other = options[1 - i];
+
+  /* Ne 주기능은 어떻게든 제3의 선택지를 만들어낸다 */
+  if (dom === 'Ne') return { pick, other, vote: THIRD_WAY, style: 'third' };
+  if (dom === 'Fe') return { pick, other, vote: pick, style: 'follow' };
+  if (dom === 'Fi') return { pick, other, vote: pick, style: 'quiet' };
+  if (dom === 'Te' || dom === 'Se') return { pick, other, vote: pick, style: 'instant' };
+  return { pick, other, vote: pick, style: 'ponder' };
+}
+
+/* 선택지가 있을 때 각 주기능이 내놓는 한마디 (상황 무관하게 통함) */
+const CHOICE_LINE = {
+  Ni: '{PICK}. 지금 {OTHER} 고르면 이따 후회하는 그림이 벌써 보여.',
+  Ne: '{PICK}… 아니 근데 {OTHER}도 아깝잖아. 둘 다 하는 방법 없어? 진짜 없어?',
+  Si: '{PICK}. 지난번에 {OTHER} 골랐다가 별로였던 거 기억 안 나?',
+  Se: '{PICK}. 지금 딱 그게 당겨. 딴 거 생각 안 나. 고민 끝.',
+  Ti: '{PICK}. 따져보면 그게 더 합리적이야. 이유 세 개 있는데 들어볼래?',
+  Te: '{PICK}. 결정. 이거 고민하는 시간이 더 아까워. 다음.',
+  Fi: '음… 나는 {PICK}인데, 네가 {OTHER} 하고 싶으면 그걸로 해도 돼. (진심 아님)',
+  Fe: '다들 뭐 골랐어? 난 많은 쪽으로 맞출게! …그래도 {PICK} 쪽이 좋긴 해.',
+};
+
+/* 부기능이 붙여주는 보완 (모든 상황 공통) */
+const SUPPORT_LINE = {
+  Ni: '거기에 "결국 어떻게 흘러갈지"를 한 겹 얹는다',
+  Ne: '거기에 아무도 생각 못 한 선택지를 몇 개 더 붙인다',
+  Si: '거기에 지난번 경험을 근거로 댄다',
+  Se: '거기에 지금 당장 할 수 있는 행동을 붙인다',
+  Ti: '거기에 "그게 말이 되나" 검증을 한 번 돌린다',
+  Te: '거기에 순서랑 시간을 정해서 못 박는다',
+  Fi: '거기에 "내 마음이 진짜 뭔지"를 확인한다',
+  Fe: '거기에 다른 사람 기분을 한 번 살핀다',
+};
+
+/* 부기능이 붙이는 끝맺음 — 주기능이 같은 유형끼리 답이 똑같아 보이지 않게 */
+const AUX_TAIL = {
+  Ni: '…근데 이거 나중에 후회하는 거 아니지?',
+  Ne: '아 아니면 딴 것도 한번 볼까?',
+  Si: '전에도 이렇게 해서 괜찮았어.',
+  Se: '말 나온 김에 나 이미 움직이고 있어.',
+  Ti: '왜 그런지 물어보면 설명해 줄게.',
+  Te: '정했으면 바로 하자. 시간 아까워.',
+  Fi: '뭐, 네 마음 편한 대로 해도 되고.',
+  Fe: '다들 괜찮지? 아니면 말해줘!',
+};
+
+/* ── 상황 정의 ───────────────────────────────────────────────── */
+const SCENES = {
+  meal: {
+    id: 'meal', label: '메뉴 정하기', emoji: '🍜', weight: 3,
+    detect: ['먹', '점심', '저녁', '아침', '메뉴', '배달', '시켜', '맛집', '야식', '식사', '회식',
+      '짜장', '짬뽕', '치킨', '피자', '떡볶이', '햄버거', '커피', '술', '고기', '밥'],
+    boost: { execution: 1.4, harmony: 1.3, ideation: 1.2 },
+    output: '오늘의 메뉴 + 누가 주문하고 누가 계산할지',
+    positions: [
+      { id: 'decider', name: '최종 결정권자', emoji: '🥢', anchor: true, need: { leadership: 1.0, execution: .7 }, duty: '"이걸로 하자" 한마디로 30분짜리 회의를 끝낸다.', mission: '3분 안에 메뉴 확정하고 주문 넣기.', warn: '남의 취향도 한 번은 물어보자.' },
+      { id: 'third', name: '제3의 메뉴 투척', emoji: '🍲', need: { ideation: 1.0, persuasion: .5 }, duty: '아무도 생각 못 한 메뉴를 꺼내 판을 흔든다.', mission: '"짬짜면 있는데?" 급의 대안 하나 찾아오기.', warn: '결정 5분 전에는 던지지 말 것.' },
+      { id: 'review', name: '리뷰·별점 검색', emoji: '🔎', need: { research: 1.0, detail: .8 }, duty: '별점, 리뷰 사진, 최소주문금액까지 확인한다.', mission: '후보 3곳 별점과 배달비 비교해서 공유.', warn: '리뷰 100개 정독하면 이미 배고픔이 한계다.' },
+      { id: 'wallet', name: '계산 · 정산 담당', emoji: '💳', need: { planning: 1.0, detail: .7 }, duty: '먼저 결제하고 1/N 계산해서 정확히 청구한다.', mission: '주문 직후 정산 링크 단톡방에 올리기.', warn: '10원 단위까지 따지면 정 떨어진다.' },
+      { id: 'extra', name: '사이드 추가 발주', emoji: '🍤', need: { execution: 1.0, persuasion: .6 }, duty: '탕수육, 군만두 같은 걸 슬쩍 추가한다.', mission: '"이거 하나만 더 시키자" 설득 성공시키기.', warn: '남기면 본인 책임이다.' },
+      { id: 'peace', name: '"아무거나" 담당', emoji: '🙂', need: { harmony: 1.0, detail: .35 }, duty: '뭐가 나와도 좋다고 한다. 평화의 수호자.', mission: '진짜 먹고 싶은 거 딱 한 번은 말하기.', warn: '"아무거나"가 제일 어려운 주문이다.' },
+      { id: 'mood', name: '분위기 담당', emoji: '🎉', need: { presentation: 1.0, harmony: .8 }, duty: '먹는 내내 테이블을 안 심심하게 만든다.', mission: '첫 5분 대화 물꼬 트기.', warn: '남들 먹을 때는 좀 먹자.' },
+      { id: 'reality', name: '현실 체크 담당', emoji: '🧊', need: { analysis: 1.0, detail: .6 }, duty: '"거기 30분 웨이팅인데" 같은 팩트를 던진다.', mission: '이동 시간과 웨이팅 확인해서 알려주기.', warn: '팩트는 결정 전에, 결정 후엔 침묵.' },
+    ],
+    approach: {
+      Ni: '메뉴 자체보다 "먹고 나서 후회할지"를 먼저 시뮬레이션한다',
+      Ne: '후보를 다섯 개쯤 더 늘려놓고 그중 제일 신기한 걸 민다',
+      Si: '지난번에 뭘 먹고 어땠는지부터 떠올린다',
+      Se: '지금 이 순간 뭐가 당기는지 몸에 물어본다',
+      Ti: '가격 대비 양, 이동 시간, 국물 유무를 따져서 최적해를 낸다',
+      Te: '후보 정리하고 다수결 돌려서 3분 안에 끝낸다',
+      Fi: '남들 눈치 보면서도 속으로는 이미 하나를 정해놨다',
+      Fe: '다 같이 만족할 메뉴가 뭘지부터 살핀다',
+    },
+    verdict: {
+      Ni: '근데 지금 배고픈 게 아니라 그냥 스트레스인 것 같은데. 뭘 먹든 두 시간 뒤에 또 고민할걸.',
+      Ne: '아 근데 그거 말고 이거 어때? 아니면 이거? …미안 또 늘렸다.',
+      Si: '늘 먹던 데 가자. 거기 실패한 적 없잖아.',
+      Se: '고민 그만. 지금 당기는 거 시키면 그게 정답이야. 나 이미 앱 켰어.',
+      Ti: '평당 가성비 따지면 답 나와 있어. 근데 다들 안 궁금해하더라.',
+      Te: '5분 줄게. 안 정하면 내가 정한다. …시간 끝, 내가 정했다.',
+      Fi: '난 진짜 아무거나 괜찮아. (먹고 싶은 거 있음)',
+      Fe: '다들 뭐 당겨? 한 명씩 말해봐. 안 겹치면 두 개 시키자!',
+    },
+  },
+
+  choice: {
+    id: 'choice', label: '양자택일', emoji: '⚖️', weight: 2,
+    detect: ['골라', '고를까', '선택', '어느 쪽', '뭐가 나아', '뭐가 좋을까', '살까', '할까 말까', '갈까'],
+    boost: { analysis: 1.4, leadership: 1.3, persuasion: 1.2 },
+    output: '결정 + 그렇게 정한 이유 한 줄',
+    positions: [
+      { id: 'decider', name: '3초 컷 결정 담당', emoji: '⚡', anchor: true, need: { leadership: 1.0, execution: .6 }, duty: '고민이 길어지면 대신 정해준다.', mission: '"이걸로 하고, 후회는 내가 책임진다" 선언하기.', warn: '남의 인생이면 한 번은 물어보자.' },
+      { id: 'table', name: '장단점 표 제작', emoji: '📊', need: { analysis: 1.0, detail: .8 }, duty: '두 선택지를 표로 만들어 눈에 보이게 한다.', mission: '기준 3개 정해서 점수 매기기.', warn: '표가 예뻐도 결정은 결국 감이다.' },
+      { id: 'devil', name: '"근데 반대로 생각하면" 담당', emoji: '😈', need: { ideation: 1.0, analysis: .7 }, duty: '정해진 결론을 한 번 흔들어 검증한다.', mission: '고른 쪽의 최악 시나리오 한 줄 쓰기.', warn: '결정 후엔 그만 흔들자.' },
+      { id: 'heart', name: '"네 마음이 뭔데" 담당', emoji: '💗', need: { harmony: 1.0, writing: .4 }, duty: '조건 말고 진심을 물어본다.', mission: '"둘 중에 뭐가 더 끌려?" 딱 한 번 묻기.', warn: '그 질문에 답 못 하는 사람도 있다.' },
+      { id: 'third', name: '제3의 길 제시자', emoji: '🌀', need: { ideation: 1.0, persuasion: .6 }, duty: '"꼭 둘 중에 골라야 돼?"라고 되묻는다.', mission: '선택지 밖의 안 하나 만들어오기.', warn: '진짜 둘 중에 골라야 할 때도 있다.' },
+      { id: 'runner', name: '이미 실행해버린 사람', emoji: '🏃', need: { execution: 1.0, presentation: .4 }, duty: '회의 중에 이미 저질러서 결정을 무의미하게 만든다.', mission: '되돌릴 수 있는지 확인부터 하기.', warn: '한 번은 물어보고 저지르자.' },
+      { id: 'memo', name: '"그때 그거 골랐잖아" 담당', emoji: '🗂️', need: { detail: 1.0, writing: .8 }, duty: '무엇을 왜 골랐는지 기록해 둔다.', mission: '결정과 이유 한 줄씩 남기기.', warn: '기록을 무기로 쓰지는 말자.' },
+      { id: 'hug', name: '뭘 골라도 잘했다고 해주는 사람', emoji: '🤗', need: { harmony: 1.0, presentation: .5 }, duty: '결정 후의 불안을 받아준다.', mission: '결정 직후 "그거 잘 골랐다" 한마디.', warn: '진짜 말려야 할 땐 말리자.' },
+    ],
+    approach: {
+      Ni: '두 선택지가 각각 어디로 이어지는지 끝 그림부터 본다',
+      Ne: '"꼭 둘 중에 골라야 하나?"부터 의심한다',
+      Si: '전에 비슷한 선택을 했을 때 어땠는지 대조한다',
+      Se: '지금 이 순간 끌리는 쪽을 그냥 잡는다',
+      Ti: '기준을 세우고 두 안을 같은 잣대로 재본다',
+      Te: '기준 정하고 점수 매겨서 높은 쪽으로 끝낸다',
+      Fi: '어느 쪽이 나답고 마음이 편한지를 본다',
+      Fe: '이 결정으로 누가 서운해질지부터 계산한다',
+    },
+    verdict: {
+      Ni: '둘 다 결국 비슷한 데로 가. 진짜 문제는 선택지가 아니라 그 다음이야.',
+      Ne: '근데 왜 둘 중에서만 골라? 제3의 안 만들어봤어? 나 세 개 있는데.',
+      Si: '전에 이런 상황에서 어떻게 했는지 봐. 그때 답이 지금도 답이야.',
+      Se: '고민한다고 답 안 나와. 일단 하나 하고, 아니면 그때 바꾸면 되잖아.',
+      Ti: '기준을 안 정해서 못 고르는 거야. 기준부터 정하면 답은 자동이야.',
+      Te: '결정. 시간 더 쓰는 게 손해야. 다음 안건으로 넘어가자.',
+      Fi: '남들이 뭐라 하든, 네가 나중에 후회 안 할 쪽으로 해.',
+      Fe: '주변에 한번 물어봐. 근데 결국 네가 하고 싶은 거 하는 게 맞아.',
+    },
+  },
+
+  weather: {
+    id: 'weather', label: '날씨 · 오늘 컨디션', emoji: '🌦️', weight: 3,
+    detect: ['날씨', '비 와', '비와', '비 올', '우산', '더워', '추워', '눈 와', '눈와', '미세먼지',
+      '기온', '장마', '태풍', '습해', '쌀쌀', '옷차림', '뭐 입'],
+    boost: { detail: 1.4, planning: 1.3, execution: 1.2 },
+    output: '오늘 뭘 챙기고 뭘 입을지 + 계획 조정 여부',
+    positions: [
+      { id: 'check', name: '기상청 앱 3개 대조', emoji: '📱', anchor: true, need: { research: 1.0, detail: .9 }, duty: '앱마다 다른 강수확률을 교차검증한다.', mission: '시간대별 강수확률 캡처해서 공유.', warn: '앱 세 개 보면 세 개 다 다르다. 그냥 창밖을 보자.' },
+      { id: 'umbrella', name: '우산 챙기는 사람', emoji: '☂️', need: { planning: 1.0, detail: .7 }, duty: '만약을 대비해 여분까지 챙긴다.', mission: '가방에 접이식 우산 하나 넣기.', warn: '챙긴 날은 안 오고 안 챙긴 날 온다.' },
+      { id: 'sunny', name: '"괜찮아 안 와" 담당', emoji: '☀️', need: { execution: 1.0, presentation: .5 }, duty: '근거 없는 낙관으로 팀을 이끈다.', mission: '틀렸을 때 우산 사주기.', warn: '적중률은 대체로 50%다.' },
+      { id: 'fit', name: '옷차림 코디 담당', emoji: '🧥', need: { design: 1.0, detail: .6 }, duty: '기온에 맞는 레이어링을 제안한다.', mission: '오늘 최저·최고 기온 보고 겉옷 정하기.', warn: '예쁨과 따뜻함 중 하나는 포기해야 한다.' },
+      { id: 'planb', name: '실내 대안 짜는 사람', emoji: '🗺️', need: { planning: 1.0, ideation: .7 }, duty: '비 오면 어디로 갈지 미리 정해둔다.', mission: '실내 대안 두 곳 찜해두기.', warn: '플랜 B가 더 재밌어지는 경우가 많다.' },
+      { id: 'outdoor', name: '비 와도 나가는 사람', emoji: '🏃', need: { execution: 1.0, persuasion: .5 }, duty: '날씨를 이유로 약속을 안 미룬다.', mission: '나갈 거면 미리 선언해서 각자 준비하게 하기.', warn: '혼자만 신나는 경우가 있다.' },
+      { id: 'worst', name: '최악의 시나리오 담당', emoji: '🌀', need: { analysis: 1.0, ideation: .6 }, duty: '"태풍 오면 어떡해"까지 미리 걱정한다.', mission: '진짜 위험할 때만 경보 울리기.', warn: '매번 울리면 아무도 안 듣는다.' },
+      { id: 'vibe', name: '비 오는 날 플레이리스트', emoji: '🎶', need: { harmony: 1.0, design: .6 }, duty: '날씨를 분위기로 바꿔놓는다.', mission: '오늘 날씨에 맞는 노래 세 곡 공유.', warn: '출근길엔 신나는 걸로 부탁한다.' },
+    ],
+    approach: {
+      Ni: '오늘 하루 전체 동선을 그려놓고 어디서 꼬일지부터 짚는다',
+      Ne: '날씨 얘기로 시작해서 어느새 여행 계획을 짜고 있다',
+      Si: '작년 이맘때 어땠는지, 지난주와 뭐가 다른지 대조한다',
+      Se: '창문 열고 직접 확인한다. 그게 제일 빠르다',
+      Ti: '강수확률 60%가 실제로 무슨 뜻인지부터 따진다',
+      Te: '나갈 시간, 챙길 것, 대안까지 정해서 통보한다',
+      Fi: '이런 날씨에 어떤 기분이 드는지를 먼저 느낀다',
+      Fe: '다들 우산 챙겼는지부터 단톡방에 물어본다',
+    },
+    verdict: {
+      Ni: '오늘은 어차피 꼬이는 날이야. 여유 시간 30분 더 잡고 움직여.',
+      Ne: '비 오는 김에 그 카페 가볼래? 아니면 아예 드라이브? 아 좋은 생각났다.',
+      Si: '작년에도 이맘때 이랬어. 그때 어떻게 했는지 떠올려보면 답 나와.',
+      Se: '창문 한 번 열어보면 5초면 알아. 앱 세 개 보는 것보다 그게 정확해.',
+      Ti: '강수확률 60%는 "10번 중 6번 온다"가 아니야. 그거부터 정리하자.',
+      Te: '출발 시간이랑 챙길 것만 정하고 끝내자. 더 고민할 일 아니야.',
+      Fi: '이런 날씨 좀 좋지 않아? 나는 오늘 그냥 아무것도 안 하고 싶어.',
+      Fe: '다들 우산 챙겼어?? 없는 사람 말해, 내가 하나 더 가져갈게!',
+    },
+  },
+
+  plan: {
+    id: 'plan', label: '약속 · 놀 계획', emoji: '🗺️', weight: 2,
+    detect: ['주말', '놀러', '여행', '약속', '어디 갈', '어디로', '데이트', '모임',
+      '휴가', '나들이', '예약', '만날'],
+    boost: { planning: 1.4, ideation: 1.3, harmony: 1.2 },
+    output: '갈 곳 + 시간표 + 누가 예약할지',
+    positions: [
+      { id: 'planner', name: '일정표 만드는 사람', emoji: '📋', anchor: true, need: { planning: 1.0, leadership: .6 }, duty: '시간 단위로 동선을 짜서 공유한다.', mission: '출발-도착-복귀 시간 확정해서 올리기.', warn: '분 단위 계획은 놀러 가서 제일 먼저 깨진다.' },
+      { id: 'book', name: '예약 · 섭외 담당', emoji: '📞', need: { execution: 1.0, persuasion: .6 }, duty: '전화하고 예약하는 귀찮은 일을 맡는다.', mission: '오늘 안에 예약 확정 문자 받기.', warn: '인원 변경은 하루 전까지만 받자.' },
+      { id: 'idea', name: '"여기 어때?" 무한 투척', emoji: '💡', need: { ideation: 1.0, research: .6 }, duty: '후보지를 계속 발굴해서 던진다.', mission: '후보 5곳 링크로 정리해서 투표 붙이기.', warn: '출발 전날에는 그만 던지자.' },
+      { id: 'budget', name: '예산 담당', emoji: '💰', need: { detail: 1.0, planning: .7 }, duty: '1인당 얼마 나올지 미리 계산한다.', mission: '교통비+입장료+식비 합산해서 공유.', warn: '금액 얘기는 즐겁게 하자.' },
+      { id: 'drive', name: '이동 · 길찾기 담당', emoji: '🚗', need: { execution: 1.0, detail: .7 }, duty: '어떻게 가고 어떻게 돌아올지 책임진다.', mission: '막차 시간 확인해서 미리 알리기.', warn: '운전자에게는 술을 권하지 말자.' },
+      { id: 'photo', name: '사진 담당', emoji: '📸', need: { design: 1.0, presentation: .6 }, duty: '기록을 남기고 보정까지 해서 뿌린다.', mission: '단체 사진 최소 한 장은 건지기.', warn: '본인 사진이 한 장도 없는 사태 주의.' },
+      { id: 'hype', name: '텐션 담당', emoji: '🎉', need: { presentation: 1.0, harmony: .6 }, duty: '가는 길부터 분위기를 끌어올린다.', mission: '이동 중 플레이리스트 준비하기.', warn: '체력 안배도 실력이다.' },
+      { id: 'real', name: '"그거 시간 안 맞아" 담당', emoji: '🧊', need: { analysis: 1.0, detail: .8 }, duty: '비현실적인 계획에 제동을 건다.', mission: '동선별 소요 시간 실제로 검색해서 알려주기.', warn: '다 자르면 아무 데도 못 간다.' },
+    ],
+    approach: {
+      Ni: '이번 약속이 어떤 하루로 남을지 그림부터 그린다',
+      Ne: '후보지를 계속 늘리다가 원래 목적지를 잊는다',
+      Si: '전에 갔던 곳 중에 좋았던 데부터 떠올린다',
+      Se: '지금 당장 갈 수 있는 데를 찾아 바로 예약한다',
+      Ti: '이동 시간과 체류 시간을 계산해서 무리인지 본다',
+      Te: '시간표 짜고 담당 정해서 단톡방에 고정한다',
+      Fi: '내가 진짜 가고 싶은 데가 어딘지를 먼저 안다',
+      Fe: '다들 언제 되는지, 뭘 좋아하는지부터 물어본다',
+    },
+    verdict: {
+      Ni: '많이 돌지 말고 한 군데서 오래 있자. 그게 기억에 남아.',
+      Ne: '여기도 좋고 저기도 좋은데… 아 그냥 다 가면 안 돼? 시간표 짜볼게.',
+      Si: '전에 갔던 데 또 가자. 거기 좋았잖아. 실패 확률 0%야.',
+      Se: '지금 예약 되는 데 찾아서 그냥 가자. 나 이미 전화하고 있어.',
+      Ti: '동선 보니까 두 군데가 한계야. 세 군데는 이동만 하다 끝나.',
+      Te: '10시 출발, 12시 점심, 3시 카페, 6시 해산. 이견 있으면 지금.',
+      Fi: '나는 사람 많은 데만 아니면 어디든 좋아. 조용한 데면 더 좋고.',
+      Fe: '다들 언제 시간 돼? 일정 취합해서 제일 많이 되는 날로 잡을게!',
+    },
+  },
+
+  love: {
+    id: 'love', label: '연애 · 인간관계 고민', emoji: '💌', weight: 3,
+    detect: ['썸', '고백', '연애', '사귀', '헤어', '이별', '짝사랑', '소개팅', '읽씹', '안읽씹',
+      '연락', '손절', '친구랑', '싸웠', '삐졌', '서운', '차단'],
+    boost: { harmony: 1.4, analysis: 1.2, persuasion: 1.2 },
+    output: '어떻게 할지 + 실제로 보낼 문장 한 줄',
+    positions: [
+      { id: 'push', name: '"그냥 고백해" 담당', emoji: '🔥', anchor: true, need: { execution: 1.0, persuasion: .8 }, duty: '망설임을 끊고 등을 떠민다.', mission: '오늘 안에 연락 한 통 보내게 만들기.', warn: '떠밀기 전에 상황은 듣자.' },
+      { id: 'forensic', name: '카톡 답장 시간 분석', emoji: '🔬', need: { analysis: 1.0, detail: .9 }, duty: '답장 텀, 말투 변화, 이모티콘 빈도를 분석한다.', mission: '최근 대화 패턴 요약해서 브리핑.', warn: '데이터로 마음을 증명할 수는 없다.' },
+      { id: 'ear', name: '들어주기 담당', emoji: '👂', need: { harmony: 1.0, writing: .4 }, duty: '조언 대신 끝까지 들어준다.', mission: '해결책 말하기 전에 10분 듣기.', warn: '"그래서 어떻게 할 거야"는 나중에.' },
+      { id: 'fact', name: '팩폭 담당', emoji: '🧊', need: { analysis: 1.0, leadership: .5 }, duty: '듣기 싫지만 맞는 말을 해준다.', mission: '한 문장으로 정리해서 말하기.', warn: '울고 있을 땐 타이밍이 아니다.' },
+      { id: 'script', name: '보낼 문장 써주는 사람', emoji: '💌', need: { writing: 1.0, ideation: .6 }, duty: '보낼 메시지를 대신 써준다.', mission: '3줄 이내로 초안 만들어주기.', warn: '너무 잘 쓰면 나중에 들킨다.' },
+      { id: 'scout', name: '인스타 정찰 담당', emoji: '🕵️', need: { research: 1.0, detail: .8 }, duty: '공개된 정보 안에서 상황을 파악한다.', mission: '알아낸 것만 말하고 추측은 빼기.', warn: '실수로 좋아요 누르면 작전 종료다.' },
+      { id: 'peace', name: '중재 담당', emoji: '🕊️', need: { harmony: 1.0, persuasion: .7 }, duty: '양쪽 말을 다 듣고 오해를 푼다.', mission: '각자 서운했던 지점 한 개씩 확인하기.', warn: '중간에서 제일 상처받는 게 중재자다.' },
+      { id: 'agent', name: '대신 연락해버리는 사람', emoji: '🚀', need: { execution: 1.0, presentation: .6 }, duty: '고민이 길어지면 자기가 나선다.', mission: '나서기 전에 반드시 허락받기.', warn: '허락 없이 하면 그건 사고다.' },
+    ],
+    approach: {
+      Ni: '지금 상황이 결국 어떤 결말로 갈지 그림을 먼저 본다',
+      Ne: '상대가 그렇게 행동한 이유를 열 가지쯤 만들어낸다',
+      Si: '전에 비슷한 일이 있었는지, 그때 어땠는지 떠올린다',
+      Se: '고민할 시간에 그냥 연락한다. 답은 반응을 봐야 안다',
+      Ti: '감정 말고 사실만 놓고 상황을 정리한다',
+      Fi: '내 마음이 진짜 어떤지부터 확인한다',
+      Te: '어떻게 할지 정하고 바로 실행한다',
+      Fe: '상대 입장에서 이 상황이 어떻게 보일지를 먼저 본다',
+    },
+    verdict: {
+      Ni: '지금 답 안 나오는 건 아직 때가 아니라서야. 근데 이건 결국 네가 먼저 움직여야 끝나.',
+      Ne: '상대가 바빴을 수도, 폰이 죽었을 수도, 사실은 고민 중일 수도 있어. 경우의 수가 열 개인데 들어볼래?',
+      Si: '전에도 이랬잖아. 그때 어떻게 됐는지 생각해보면 답이 나와.',
+      Se: '고민만 3일 했잖아. 그냥 지금 연락해. 답장 오면 그때 또 생각해.',
+      Ti: '감정 빼고 팩트만 보자. 연락 텀이 늘었고 먼저 연락한 적이 없어. 결론은 나와 있어.',
+      Fi: '남들 말 말고, 네 마음이 어떤지가 제일 중요해. 억지로 놓지는 마.',
+      Te: '연락하든 정리하든 하나만 골라. 애매하게 끄는 게 제일 손해야.',
+      Fe: '상대도 지금 고민하고 있을걸? 근데 네가 힘든 게 제일 걱정이야. 밥은 먹었어?',
+    },
+  },
+
+  money: {
+    id: 'money', label: '살까 말까 (지름신)', emoji: '💸', weight: 3,
+    detect: ['살까', '지를까', '사고 싶', '가격', '할인', '세일', '중고', '결제', '카드', '돈',
+      '가성비', '지름', '환불', '구매', '얼마'],
+    boost: { analysis: 1.4, detail: 1.3, persuasion: 1.2 },
+    output: '산다 / 안 산다 + 결정적 이유 한 줄',
+    positions: [
+      { id: 'stop', name: '제동 담당', emoji: '🛑', anchor: true, need: { analysis: 1.0, leadership: .6 }, duty: '"그거 이미 비슷한 거 있잖아"를 짚는다.', mission: '집에 있는 대체품 있는지 확인시키기.', warn: '진짜 필요할 때는 밀어주자.' },
+      { id: 'calc', name: '가성비 계산 담당', emoji: '🧮', need: { detail: 1.0, analysis: .8 }, duty: '사용 횟수로 나눠 1회당 가격을 낸다.', mission: '"1년 쓰면 하루 300원" 계산해서 보여주기.', warn: '그 계산은 대체로 지름을 정당화한다.' },
+      { id: 'review', name: '리뷰 100개 정독', emoji: '⭐', need: { research: 1.0, detail: .9 }, duty: '별점 낮은 리뷰만 골라 읽는다.', mission: '치명적 단점 3개 뽑아오기.', warn: '읽다 보면 살 마음이 사라진다. 그게 목적이면 성공.' },
+      { id: 'compare', name: '최저가 비교 담당', emoji: '📊', need: { research: 1.0, planning: .7 }, duty: '쿠폰, 카드할인, 적립까지 다 계산한다.', mission: '최저가 조합 찾아서 링크 보내기.', warn: '비교하다 품절되는 경우가 있다.' },
+      { id: 'spin', name: '지름 합리화 담당', emoji: '🧠', need: { ideation: 1.0, persuasion: .8 }, duty: '사야 하는 이유를 창의적으로 만들어낸다.', mission: '"이건 투자야" 논리 세 개 만들기.', warn: '너무 잘하면 통장이 운다.' },
+      { id: 'resale', name: '되팔이 계산 담당', emoji: '♻️', need: { analysis: 1.0, research: .7 }, duty: '중고가 방어율까지 따진다.', mission: '중고 시세 확인해서 실질 비용 계산.', warn: '되팔 생각으로 사면 안 판다.' },
+      { id: 'push', name: '"질러" 담당', emoji: '💸', need: { execution: 1.0, persuasion: .7 }, duty: '망설임을 끝내준다.', mission: '결제 버튼 누르게 만들기.', warn: '남의 돈이라고 쉽게 말하지 말자.' },
+      { id: 'care', name: '통장 걱정 담당', emoji: '🫶', need: { harmony: 1.0, detail: .6 }, duty: '이번 달 남은 예산을 상기시킨다.', mission: '이번 달 지출 현황 확인시키기.', warn: '잔소리와 걱정은 종이 한 장 차이다.' },
+    ],
+    approach: {
+      Ni: '이걸 샀을 때 6개월 뒤 어떻게 쓰고 있을지를 본다',
+      Ne: '이걸로 뭘 할 수 있을지 상상하다 이미 사고 있다',
+      Si: '전에 비슷한 거 샀다가 어떻게 됐는지 떠올린다',
+      Se: '지금 마음에 들면 그게 이유다. 이미 장바구니에 있다',
+      Ti: '가격 대비 성능을 따져 진짜 필요한지 검증한다',
+      Te: '예산과 우선순위를 정하고 그 안에서 결정한다',
+      Fi: '이게 나한테 진짜 의미가 있는 물건인지 본다',
+      Fe: '이걸 사면 누가 좋아할지, 같이 쓸 수 있을지 본다',
+    },
+    verdict: {
+      Ni: '6개월 뒤에도 쓰고 있을 것 같으면 사. 아니면 지금 그 돈 아껴.',
+      Ne: '이거 사면 저것도 해볼 수 있고 저것도… 아 위험하다. 일단 장바구니에만 담아.',
+      Si: '작년에 비슷한 거 샀을 때 어떻게 됐는지 떠올려봐. 답은 거기 있어.',
+      Se: '마음에 들면 사. 고민하는 동안 품절되는 게 더 아까워.',
+      Ti: '가격 대비 성능이 애매해. 한 단계 위 모델이 오히려 합리적이야.',
+      Te: '이번 달 예산 얼마 남았어? 그거 넘으면 다음 달. 넘지 않으면 사.',
+      Fi: '진짜 갖고 싶으면 사. 근데 남들 다 사서 사는 거면 다시 생각해봐.',
+      Fe: '같이 쓸 수 있는 거면 사자! 나도 살까? 우리 같이 사면 할인되지 않아?',
+    },
+  },
+
+  daily: {
+    id: 'daily', label: '일상 · 잡담', emoji: '☕', weight: 1,
+    detect: ['심심', '뭐하지', '뭐 하지', '기분', '피곤', '졸려', '스트레스', '요즘', '어때', '어떠니', '추천', '고민'],
+    boost: { harmony: 1.2, ideation: 1.2 },
+    output: '답 + 지금 당장 해볼 만한 것 한 가지',
+    positions: [
+      { id: 'start', name: '일단 시작하는 사람', emoji: '🎬', anchor: true, need: { execution: 1.0, leadership: .6 }, duty: '말만 하다 끝나는 걸 막는다.', mission: '지금 당장 5분짜리 하나 시작하기.', warn: '남까지 끌고 갈 필요는 없다.' },
+      { id: 'plan', name: '계획 세우는 사람', emoji: '📋', need: { planning: 1.0, detail: .6 }, duty: '막연한 걸 순서 있게 정리한다.', mission: '할 일 3개로 줄여서 적기.', warn: '계획 세우다 하루가 간다.' },
+      { id: 'idea', name: '아이디어 던지는 사람', emoji: '💡', need: { ideation: 1.0, presentation: .5 }, duty: '"이건 어때?"를 계속 만들어낸다.', mission: '해볼 만한 것 다섯 개 던지기.', warn: '실행은 다른 사람 몫이 되기 쉽다.' },
+      { id: 'real', name: '현실 체크 담당', emoji: '🧊', need: { analysis: 1.0, detail: .7 }, duty: '가능한 것과 아닌 것을 구분해준다.', mission: '"그건 시간이 안 돼"를 근거와 함께 말하기.', warn: '가끔은 그냥 두자.' },
+      { id: 'mood', name: '분위기 담당', emoji: '🎉', need: { presentation: 1.0, harmony: .6 }, duty: '처진 공기를 바꿔놓는다.', mission: '웃긴 거 하나 공유하기.', warn: '진지할 땐 진지하자.' },
+      { id: 'care', name: '챙기는 사람', emoji: '🤗', need: { harmony: 1.0, detail: .5 }, duty: '"밥은 먹었어?"를 진심으로 묻는다.', mission: '오늘 연락 안 된 사람에게 안부 묻기.', warn: '본인도 챙기자.' },
+      { id: 'log', name: '기록 담당', emoji: '📝', need: { writing: 1.0, detail: .8 }, duty: '지나간 걸 남겨서 나중에 꺼내준다.', mission: '오늘 한 줄 기록하기.', warn: '기록만 하고 안 읽으면 소용없다.' },
+      { id: 'watch', name: '관찰만 하는 사람', emoji: '👀', need: { analysis: 1.0, ideation: .6 }, duty: '조용히 보다가 결정적일 때 한마디 한다.', mission: '오늘 한 번은 먼저 말 꺼내기.', warn: '너무 늦게 말하면 이미 정해져 있다.' },
+    ],
+    approach: {
+      Ni: '지금 이 기분이 어디서 온 건지부터 짚는다',
+      Ne: '얘기하다 보면 전혀 다른 주제로 넘어가 있다',
+      Si: '전에 비슷할 때 뭐가 도움 됐는지 떠올린다',
+      Se: '몸을 먼저 움직인다. 생각은 그다음이다',
+      Ti: '질문 자체가 정확한지부터 되묻는다',
+      Te: '지금 할 수 있는 걸 정해서 순서대로 처리한다',
+      Fi: '지금 내 상태가 어떤지 솔직하게 본다',
+      Fe: '지금 이 자리 사람들 기분부터 살핀다',
+    },
+    verdict: {
+      Ni: '그거 지금 문제가 아니라 다른 게 눌려 있어서 그래. 진짜 원인은 따로 있어.',
+      Ne: '그럼 이거 해볼래? 아니면 이것도 재밌는데. 아 갑자기 아이디어 다섯 개 생겼어.',
+      Si: '전에 이럴 때 산책하니까 괜찮아졌잖아. 검증된 방법부터 해보자.',
+      Se: '생각 그만하고 일단 나가. 나가면 반은 해결돼.',
+      Ti: '질문이 좀 애매한데? 정확히 뭐가 궁금한 건지부터 정리해보자.',
+      Te: '할 거 세 개만 적어. 위에서부터 하나씩 지워. 그게 제일 빨라.',
+      Fi: '오늘은 그냥 아무것도 안 해도 괜찮아. 진짜로.',
+      Fe: '무슨 일 있었어? 일단 말해봐. 듣고 나서 같이 생각하자.',
+    },
+  },
+};
+
+const ASSIGNMENT_DETECT = ['과제', '조별', '모둠', '발표', '보고서', '레포트', '리포트', '논문', '에세이',
+  '조사', '리서치', '토론', '기획', '캠페인', '제작', '실습', '프로젝트', '하시오', '하라', '서술',
+  '논하', '분석', '설문', '실태', '방안', '전략', '프로토타입', '시연', '공모'];
+
+function detectScene(text) {
+  const q = String(text).toLowerCase();
+  const assignHits = ASSIGNMENT_DETECT.filter((w) => q.includes(w)).length;
+
+  const scored = Object.values(SCENES)
+    .map((s) => ({ scene: s, score: s.detect.filter((w) => q.includes(w)).length * s.weight }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  /* 과제 신호가 뚜렷하면 과제 모드 (일상 신호보다 확실히 셀 때만) */
+  const best = scored[0];
+  if (assignHits > 0 && (!best || assignHits * 3 >= best.score)) return null;
+  if (best) return best.scene;
+  if (extractOptions(text)) return SCENES.choice;
+  return SCENES.daily;
+}
+
+const SCENE_LIST = Object.values(SCENES);

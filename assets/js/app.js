@@ -5,12 +5,14 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const EXAMPLES = [
+    '오늘 짜장면 먹을까 짬뽕 먹을까',
+    '오늘 비 온다는데 우산 챙길까 말까',
+    '읽씹 3일째인데 내가 먼저 연락할까',
+    '이거 지금 살까 다음 달에 살까',
+    '이번 주말에 뭐하지',
     '지구 온난화의 영향과 해결 방안에 대해 조사하고 발표하시오',
-    '우리 학교 축제 홍보 캠페인을 기획하라',
     'AI가 일자리에 미치는 영향 — 찬반 토론 준비',
-    '지역 상권 데이터를 분석해 개선 방안을 제안하는 보고서',
-    '중고 물품 거래 앱 프로토타입 제작 및 시연',
-    '청소년 SNS 사용 실태 설문조사 리포트',
+    '우리 학교 축제 홍보 캠페인을 기획하라',
   ];
 
   const state = {
@@ -124,30 +126,76 @@
 
   function render() {
     const a = state.analysis;
-    let html = analysisSection(a) + roadmapSection(a);
+    let html = analysisSection(a);
+    if (a.options) html += voteSection(a);
+    if (a.isAssignment) html += roadmapSection(a);
     html += state.mode === 'team' ? teamSection(a) : '';
     html += typesSection(a);
     $('#result').innerHTML = html;
     bindResult();
   }
 
+  /* 이 앱의 말투: 과제냐 일상이냐에 따라 라벨을 통째로 바꾼다 */
+  function words(a) {
+    return a.isAssignment
+      ? { unit: '과제', role: '역할', team: '우리 조', roleQ: '이 과제에서 맡아야 할 역할' }
+      : { unit: '상황', role: '포지션', team: '우리 무리', roleQ: '이 상황에서 맡는 포지션' };
+  }
+
   /* ── 1. 과제 분석 ───────────────────────────────────────── */
   function analysisSection(a) {
+    const w = words(a);
+    const third = a.isAssignment
+      ? { k: '답변에 들어가야 할 축', v: a.axes.map((x) => esc(x.label)).join(' · ') }
+      : a.options
+        ? { k: '갈라진 선택지', v: a.options.map((o) => esc(o)).join('  vs  ') }
+        : { k: '이 상황에서 필요한 것', v: a.topTraits.length ? a.topTraits.map((t) => esc(t.label)).join(' · ') : '균형' };
+
     return `
-    <h2 class="section-title">🧭 과제 분석 <small>입력한 질문을 이렇게 읽었습니다</small></h2>
+    <h2 class="section-title">🧭 ${w.unit} 분석 <small>입력한 질문을 이렇게 읽었습니다</small></h2>
     <section class="panel">
       <div class="meta-grid">
-        <div class="meta"><div class="k">과제 유형</div><div class="v">${a.kindEmoji} ${esc(a.kindLabel)}</div></div>
+        <div class="meta"><div class="k">${w.unit} 유형</div><div class="v">${a.kindEmoji} ${esc(a.kindLabel)}</div></div>
         <div class="meta"><div class="k">핵심 주제</div><div class="v">${esc(a.topic)}</div></div>
-        <div class="meta"><div class="k">답변에 들어가야 할 축</div><div class="v">${a.axes.map((x) => esc(x.label)).join(' · ')}</div></div>
-        <div class="meta"><div class="k">추천 결과물</div><div class="v" style="font-size:14px">${esc(a.output)}</div></div>
+        <div class="meta"><div class="k">${third.k}</div><div class="v">${third.v}</div></div>
+        <div class="meta"><div class="k">${a.isAssignment ? '추천 결과물' : '이 앱이 줄 답'}</div><div class="v" style="font-size:14px">${esc(a.output)}</div></div>
       </div>
       <div class="tagline-pills">
         ${a.topTraits.length
-    ? `<span class="pill">이 과제에 특히 필요한 역량</span>` + a.topTraits.map((t) => `<span class="pill">${esc(t.label)}</span>`).join('')
+    ? `<span class="pill">이 ${w.unit}에 특히 필요한 역량</span>` + a.topTraits.map((t) => `<span class="pill">${esc(t.label)}</span>`).join('')
     : '<span class="pill">특정 역량 편중 없음 — 균형 배정</span>'}
       </div>
       ${a.keywords.length ? `<div class="tagline-pills">${a.keywords.map((k) => `<span class="pill" style="background:#232748;border-color:var(--line);color:var(--tx2)">#${esc(k)}</span>`).join('')}</div>` : ''}
+    </section>`;
+  }
+
+  /* ── 1.5 16유형 투표 결과 (양자택일 질문일 때) ──────────── */
+  function voteSection(a) {
+    const tally = {};
+    MBTI.forEach((t) => {
+      const d = decideFor(t, a.options);
+      (tally[d.vote] = tally[d.vote] || []).push(t);
+    });
+    const rows = Object.entries(tally).sort((x, y) => y[1].length - x[1].length);
+    const top = rows[0];
+    const tie = rows.length > 1 && rows[1][1].length === top[1].length;
+
+    return `
+    <h2 class="section-title">🗳️ 16유형 투표 결과 <small>그래서 다수는 이쪽입니다</small></h2>
+    <section class="panel">
+      <div class="verdict-line">
+        ${tie
+    ? `😐 <b>${esc(top[0])}</b> 와(과) <b>${esc(rows[1][0])}</b> 동률. 이럴 땐 그냥 가위바위보 하세요.`
+    : `🏆 <b>${esc(top[0])}</b> — ${top[1].length}표로 1위. 근데 소수 의견도 한 번 보세요.`}
+      </div>
+      <div class="votes">
+        ${rows.map(([label, list]) => `
+          <div class="vote">
+            <div class="vhead"><b>${esc(label)}</b><span>${list.length}표</span></div>
+            <div class="vbar"><i style="width:${Math.round((list.length / 16) * 100)}%"></i></div>
+            <div class="vtypes">${list.map((t) => `<span>${t.emoji} ${t.code}</span>`).join('')}</div>
+          </div>`).join('')}
+      </div>
     </section>`;
   }
 
@@ -170,16 +218,17 @@
 
   /* ── 3. 우리 조 배정 ────────────────────────────────────── */
   function teamSection(a) {
+    const w = words(a);
     if (!state.members.length) {
-      return `<h2 class="section-title">👥 우리 조 역할 배정</h2>
-        <section class="panel empty">위에서 조원을 추가하면 겹치지 않게 역할을 나눠드립니다.<br>
+      return `<h2 class="section-title">👥 ${w.team} ${w.role} 배정</h2>
+        <section class="panel empty">위에서 사람을 추가하면 겹치지 않게 ${w.role}을 나눠드립니다.<br>
         급하면 <b>🎲 랜덤 4인조</b>를 눌러 보세요.</section>`;
     }
     const { assignments, unfilled } = assignTeam(state.members, a);
     const diag = diagnoseTeam(state.members);
 
     return `
-    <h2 class="section-title">👥 우리 조 역할 배정 <small>${state.members.length}명 · 중복 없이 최적 배치</small></h2>
+    <h2 class="section-title">👥 ${w.team} ${w.role} 배정 <small>${state.members.length}명 · 중복 없이 최적 배치</small></h2>
     <section class="panel">
       <div class="assign">
         ${assignments.map((x) => `
@@ -196,11 +245,11 @@
           </div>`).join('')}
       </div>
       ${unfilled.length ? `<div class="warnbox" style="margin-top:14px">
-        ⚠️ 인원이 부족해 <b>${unfilled.map((r) => esc(r.name)).join(', ')}</b> 역할은 비어 있습니다.
-        위 배정에서 여유 있는 사람이 겸임하거나, 조원을 더 추가하세요.</div>` : ''}
+        ⚠️ 인원이 부족해 <b>${unfilled.map((r) => esc(r.name)).join(', ')}</b> ${w.role}은 비어 있습니다.
+        여유 있는 사람이 겸임하거나, 사람을 더 추가하세요.</div>` : ''}
     </section>
 
-    <h2 class="section-title">🔮 우리 조 케미 진단 <small>미리 알면 피할 수 있습니다</small></h2>
+    <h2 class="section-title">🔮 ${w.team} 케미 진단 <small>미리 알면 피할 수 있습니다</small></h2>
     <section class="panel"><div class="diag">
       ${diag.map((d) => `<div class="diag-item ${d.level}"><div class="e">${d.emoji}</div>
         <div><b>${esc(d.title)}</b>${esc(d.text)}</div></div>`).join('')}
@@ -218,7 +267,7 @@
       .map((x) => typeCard(buildTypeCard(x.type, a, x), a)).join('');
 
     return `
-    <h2 class="section-title">🧬 MBTI별 예상 정답 &amp; 역할 <small>같은 질문, 16가지 다른 답</small></h2>
+    <h2 class="section-title">🧬 MBTI별 예상 정답 &amp; ${words(a).role} <small>같은 질문, 16가지 다른 답</small></h2>
     <section class="panel">
       <div class="filters">
         ${groups.map((g) => `<button class="filter ${state.filter === g ? 'on' : ''}" data-f="${g}">${labels[g]}</button>`).join('')}
@@ -234,6 +283,7 @@
 
   function typeCard(c, a) {
     const t = c.type;
+    const w = words(a);
     const barTraits = ['leadership', 'research', 'ideation', 'presentation', 'detail', 'harmony'];
     return `
     <article class="tcard g-${t.group}" data-code="${t.code}">
@@ -251,22 +301,29 @@
       </div>
 
       <div class="roleline">
-        <div class="lab">이 과제에서 맡아야 할 역할</div>
+        <div class="lab">${w.roleQ}</div>
         <div class="val">${c.primary.role.emoji} ${esc(c.primary.role.name)}</div>
         <div class="sub">${esc(c.primary.role.duty)}</div>
-        <div class="sub" style="margin-top:6px;color:var(--tx3)">서브 역할 — ${c.secondary.role.emoji} ${esc(c.secondary.role.name)} · 안 맞는 역할 — ${esc(c.avoid.role.name)}</div>
+        <div class="sub" style="margin-top:6px;color:var(--tx3)">서브 — ${c.secondary.role.emoji} ${esc(c.secondary.role.name)} · 안 맞는 ${w.role} — ${esc(c.avoid.role.name)}</div>
       </div>
 
+      ${c.answer.verdict ? `
       <div class="block">
-        <div class="h">💬 예상 정답</div>
+        <div class="h">💬 ${t.code}의 대답</div>
+        <div class="answer-big">${esc(c.answer.verdict)}</div>
+      </div>` : ''}
+
+      <div class="block">
+        <div class="h">${c.answer.verdict ? '🧠 왜 그렇게 답하냐면' : '💬 예상 정답'}</div>
         <div class="p">${esc(c.answer.body)}</div>
         <ul>${c.answer.bullets.map((b) => `<li><b>${esc(b.label)}</b> — ${esc(b.text)}</li>`).join('')}</ul>
       </div>
 
+      ${c.answer.verdict ? '' : `
       <div class="block">
         <div class="h">🎙️ 회의에서 할 법한 한마디</div>
         <div class="quote">${esc(c.answer.quote)}</div>
-      </div>
+      </div>`}
 
       <div class="block">
         <div class="h">🧠 인지기능 스택</div>
@@ -289,7 +346,7 @@
       </div>
 
       <div class="trap">⚠️ 주의 — ${esc(t.caution)} (열등기능 ${t.stack[3]}: ${esc(c.answer.trap)})</div>
-      <div class="block"><div class="h">🤝 이 과제에서 잘 맞는 짝</div>
+      <div class="block"><div class="h">🤝 이 ${w.unit}에서 잘 맞는 짝</div>
         <div class="p" style="font-size:13.5px">${c.partner.emoji} <b>${c.partner.code}</b> — ${esc(c.partner.teamLine)}</div>
       </div>
 
@@ -350,23 +407,33 @@
 
   function copyAll() {
     const a = state.analysis;
-    const lines = [`■ 과제: ${a.question}`, `■ 유형: ${a.kindLabel} / 결과물: ${a.output}`, ''];
+    const w = words(a);
+    const lines = [`■ 질문: ${a.question}`, `■ ${w.unit} 유형: ${a.kindLabel} / ${a.output}`, ''];
+
+    if (a.options) {
+      const tally = {};
+      MBTI.forEach((t) => { const d = decideFor(t, a.options); (tally[d.vote] = tally[d.vote] || []).push(t.code); });
+      lines.push('■ 16유형 투표 결과');
+      Object.entries(tally).sort((x, y) => y[1].length - x[1].length)
+        .forEach(([label, list]) => lines.push(`- ${label}: ${list.length}표 (${list.join(', ')})`));
+      lines.push('');
+    }
 
     if (state.mode === 'team' && state.members.length) {
-      lines.push('■ 우리 조 역할 배정');
+      lines.push(`■ ${w.team} ${w.role} 배정`);
       assignTeam(state.members, a).assignments.forEach((x) => {
         lines.push(`- ${x.member.name} (${x.type.code}) → ${x.role.name}: ${x.role.mission}`);
       });
       lines.push('');
     }
 
-    lines.push('■ MBTI별 예상 정답 & 역할');
+    lines.push(`■ MBTI별 예상 정답 & ${w.role}`);
     assignAllTypes(a)
       .filter((x) => state.filter === 'ALL' || x.type.group === state.filter)
       .forEach((x) => {
         const c = buildTypeCard(x.type, a, x);
-        lines.push(`\n[${x.type.code} · ${x.type.nickname}] 역할: ${c.primary.role.name}`);
-        lines.push(`  답변: ${c.answer.body}`);
+        lines.push(`\n[${x.type.code} · ${x.type.nickname}] ${w.role}: ${c.primary.role.name}`);
+        lines.push(`  답변: ${c.answer.verdict || c.answer.body}`);
         lines.push(`  한마디: ${c.answer.quote}`);
       });
 

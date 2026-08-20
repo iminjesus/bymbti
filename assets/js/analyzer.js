@@ -137,8 +137,15 @@ function analyzeQuestion(text) {
   const q = (text || '').trim();
   const lower = q.toLowerCase();
 
-  /* 1) 과제 유형 판정 */
-  const kindHits = TASK_KINDS.map((k) => {
+  /* 0) 이게 과제인지 일상 질문인지 먼저 가른다 */
+  const scene = detectScene(q);
+  const isAssignment = !scene;
+  const roleSet = isAssignment ? ROLES : scene.positions;
+  const roleLookup = Object.fromEntries(roleSet.map((r) => [r.id, r]));
+  const options = isAssignment ? null : extractOptions(q);
+
+  /* 1) 과제라면 어떤 유형의 과제인지 */
+  const kindHits = !isAssignment ? [] : TASK_KINDS.map((k) => {
     const hits = k.words.filter((w) => lower.includes(w.toLowerCase()));
     return { kind: k, score: hits.length, hits };
   }).filter((h) => h.score > 0).sort((a, b) => b.score - a.score);
@@ -149,34 +156,41 @@ function analyzeQuestion(text) {
   /* 2) 역량 가중치 */
   const weights = {};
   Object.keys(TRAIT_LABELS).forEach((k) => { weights[k] = 1; });
-  kinds.forEach((k, i) => {
-    const scale = i === 0 ? 1 : 0.6;
-    Object.entries(k.boost).forEach(([trait, v]) => {
-      weights[trait] = Math.max(weights[trait], 1 + (v - 1) * scale);
+
+  if (isAssignment) {
+    kinds.forEach((k, i) => {
+      const scale = i === 0 ? 1 : 0.6;
+      Object.entries(k.boost).forEach(([trait, v]) => {
+        weights[trait] = Math.max(weights[trait], 1 + (v - 1) * scale);
+      });
     });
-  });
-  /* 조별과제면 조율/리더십은 항상 조금 올린다 */
-  if (/조별|그룹|팀|모둠|공동/.test(q)) {
-    weights.harmony = Math.max(weights.harmony, 1.25);
-    weights.leadership = Math.max(weights.leadership, 1.2);
+    if (/조별|그룹|팀|모둠|공동/.test(q)) {
+      weights.harmony = Math.max(weights.harmony, 1.25);
+      weights.leadership = Math.max(weights.leadership, 1.2);
+    }
+  } else {
+    Object.entries(scene.boost).forEach(([trait, v]) => { weights[trait] = v; });
+    /* 양자택일이면 결단력이 제일 중요하다 */
+    if (options) {
+      weights.leadership = Math.max(weights.leadership, 1.35);
+      weights.analysis = Math.max(weights.analysis, 1.25);
+    }
   }
 
-  /* 3) 답변 축 */
+  /* 3) 답변 축 (과제일 때만 의미 있음) */
   let axes = ANSWER_AXES.filter((a) => a.words.some((w) => lower.includes(w.toLowerCase())));
-  if (axes.length === 0) {
-    axes = [ANSWER_AXES[0], ANSWER_AXES[5], ANSWER_AXES[4]];
-  }
+  if (axes.length === 0) axes = [ANSWER_AXES[0], ANSWER_AXES[5], ANSWER_AXES[4]];
   axes = axes.slice(0, 3);
 
-  /* 4) 역할 우선순위 */
-  const rolePriority = ROLES.map((role) => {
-    let s = 0;
+  /* 4) 역할/포지션 우선순위 */
+  const rolePriority = roleSet.map((role) => {
+    let sc = 0;
     let w = 0;
     Object.entries(role.need).forEach(([trait, rw]) => {
-      s += rw * (weights[trait] || 1);
+      sc += rw * (weights[trait] || 1);
       w += rw;
     });
-    return { role, priority: w ? s / w : 1 };
+    return { role, priority: w ? sc / w : 1 };
   }).sort((a, b) => b.priority - a.priority);
 
   const topTraits = Object.entries(weights)
@@ -189,10 +203,17 @@ function analyzeQuestion(text) {
     question: q,
     topic: shortTopic(q),
     keywords: extractKeywords(q),
+    scene,
+    isAssignment,
+    roleSet,
+    roleLookup,
+    options,
     kinds,
-    kindLabel: primary ? primary.label : '일반 탐구형 과제',
-    kindEmoji: primary ? primary.emoji : '🧭',
-    output: primary ? primary.output : '핵심 주장 + 근거 + 결론 구성의 결과물',
+    kindLabel: isAssignment ? (primary ? primary.label : '일반 탐구형 과제') : scene.label,
+    kindEmoji: isAssignment ? (primary ? primary.emoji : '🧭') : scene.emoji,
+    output: isAssignment
+      ? (primary ? primary.output : '핵심 주장 + 근거 + 결론 구성의 결과물')
+      : scene.output,
     weights,
     axes,
     rolePriority,

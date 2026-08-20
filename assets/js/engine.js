@@ -21,7 +21,7 @@ function explainMatch(type, role) {
 /* ── 모드 1: 16유형 전체 ─────────────────────────────────────── */
 function assignAllTypes(analysis) {
   return MBTI.map((type) => {
-    const ranked = ROLES
+    const ranked = analysis.roleSet
       .map((role) => ({ role, score: scoreTypeRole(type, role, analysis) }))
       .sort((a, b) => b.score - a.score);
     return {
@@ -40,18 +40,20 @@ function assignTeam(members, analysis) {
 
   /* 후보 역할 풀은 인원수보다 넉넉하게 열어둔다 (억지 배치 방지).
      단, 이 과제에서 없으면 안 되는 상위 역할은 반드시 채워지도록 보너스를 준다. */
+  const all = analysis.roleSet;
   const n = members.length;
-  const poolSize = Math.min(ROLES.length, n + 4);
+  const poolSize = Math.min(all.length, n + 4);
   const ranked = analysis.rolePriority.slice(0, poolSize).map((p) => p.role);
 
-  /* 2명 이상이면 팀장은 무조건 있어야 한다. 그다음은 과제 우선순위 순. */
+  /* 3명 이상이면 그 상황의 중심 포지션(anchor)은 무조건 채운다 */
+  const anchor = all.find((r) => r.anchor);
   const mustIds = [];
-  if (n >= 3) mustIds.push('leader');
+  if (n >= 3 && anchor) mustIds.push(anchor.id);
   analysis.rolePriority.forEach((p) => {
     if (mustIds.length < Math.min(3, n) && !mustIds.includes(p.role.id)) mustIds.push(p.role.id);
   });
 
-  const must = mustIds.map((id) => ROLES_BY_ID[id]);
+  const must = mustIds.map((id) => analysis.roleLookup[id]);
   const rest = ranked.filter((r) => !mustIds.includes(r.id));
   const roles = must.concat(rest).slice(0, Math.max(poolSize, must.length));
   const mustFill = must.length;
@@ -94,7 +96,7 @@ function assignTeam(members, analysis) {
   const assignments = members.map((m, i) => {
     const type = MBTI_BY_CODE[m.code];
     const role = roles[pairs[i]];
-    const own = ROLES.map((r) => ({ role: r, score: scoreTypeRole(type, r, analysis) })).sort((x, y) => y.score - x.score);
+    const own = all.map((r) => ({ role: r, score: scoreTypeRole(type, r, analysis) })).sort((x, y) => y.score - x.score);
     const rank = own.findIndex((r) => r.role.id === role.id) + 1;
     return {
       member: m,
