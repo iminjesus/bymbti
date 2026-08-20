@@ -370,9 +370,33 @@
         lines.push(`  한마디: ${c.answer.quote}`);
       });
 
-    navigator.clipboard.writeText(lines.join('\n'))
-      .then(() => alert('결과를 클립보드에 복사했습니다 📋'))
-      .catch(() => alert('복사에 실패했습니다. 인쇄 기능을 이용해 주세요.'));
+    copyText(lines.join('\n'));
+  }
+
+  /* file:// 로 직접 열면 navigator.clipboard 가 없다. 그때는 execCommand 로 대체. */
+  function copyText(text) {
+    const done = () => alert('결과를 클립보드에 복사했습니다 📋');
+    const fail = () => alert('복사에 실패했습니다. 인쇄 / PDF 저장을 이용해 주세요.');
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(() => legacyCopy(text) ? done() : fail());
+      return;
+    }
+    if (legacyCopy(text)) done(); else fail();
+  }
+
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
   }
 
   document.addEventListener('DOMContentLoaded', () => {

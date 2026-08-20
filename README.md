@@ -51,14 +51,26 @@
 
 ## 실행 방법
 
-정적 사이트라 빌드가 필요 없습니다.
+정적 사이트라 빌드가 필요 없습니다. `index.html`을 브라우저로 열기만 하면 됩니다.
+
+```powershell
+# Windows (PowerShell)
+git clone -b main https://github.com/iminjesus/bymbti
+cd bymbti
+start index.html
+```
 
 ```bash
-# 그냥 열기
-open index.html
+# macOS / Linux
+git clone -b main https://github.com/iminjesus/bymbti
+cd bymbti
+open index.html      # Linux 는 xdg-open index.html
+```
 
-# 또는 로컬 서버
-python3 -m http.server 8000   # → http://localhost:8000
+로컬 서버로 띄우고 싶다면:
+
+```bash
+python -m http.server 8000   # → http://localhost:8000
 ```
 
 **GitHub Pages 배포:** Settings → Pages → Source를 `main` 브랜치 `/ (root)`로 지정하면 끝입니다.
