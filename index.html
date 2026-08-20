@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bymbti — MBTI로 조별과제 역할 자동 배정</title>
+<meta name="description" content="아무 질문이나 넣으면 MBTI 16유형별 예상 답변과 딱 맞는 역할을 배정해 줍니다. 조별과제 생존 도구.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="logo"><b>bymbti</b> <span>바이엠비티아이</span></div>
+    <p class="tagline">아무 질문이나 던지면, <b>MBTI별 예상 정답</b>과 <b>딱 맞는 역할</b>을 뽑아드립니다.</p>
+    <p class="subline">조별과제 지뢰 제거용 · 16유형 인지기능 스택 기반 자동 배정</p>
+  </header>
+
+  <!-- 입력 -->
+  <section class="panel ask">
+    <label class="label" for="q">질문 · 과제를 입력하세요</label>
+    <textarea id="q" placeholder="예) 지구 온난화의 영향과 해결 방안에 대해 조사하고 발표하시오"></textarea>
+
+    <div class="chips" id="examples"></div>
+
+    <div class="row between" style="margin-top:18px">
+      <div class="tabs" id="modeTabs">
+        <button class="tab on" data-mode="all">🌐 16유형 전체 보기</button>
+        <button class="tab" data-mode="team">👥 우리 조 멤버로 배정</button>
+      </div>
+      <button class="btn" id="run">역할 배정하기 →</button>
+    </div>
+
+    <!-- 팀 모드 -->
+    <div id="teamPanel" style="display:none; margin-top:18px; border-top:1px solid var(--line); padding-top:16px">
+      <label class="label">조원 추가 (이름 + MBTI)</label>
+      <div class="member-form">
+        <input id="mName" placeholder="이름 (예: 지민)" maxlength="12">
+        <select id="mCode"></select>
+        <button class="ghost" id="addMember">+ 추가</button>
+        <button class="ghost" id="randomTeam">🎲 랜덤 4인조</button>
+      </div>
+      <div class="members" id="members"></div>
+      <p class="subline" style="margin-top:10px">역할은 <b>겹치지 않게</b> 배정됩니다. 과제 성격상 중요한 역할부터 채워집니다.</p>
+    </div>
+
+    <!-- 고급 설정 -->
+    <details class="adv">
+      <summary>⚙️ 고급 설정 — Claude API로 답변 더 정교하게 (선택)</summary>
+      <div class="body">
+        <p class="subline" style="margin-bottom:9px">
+          키를 넣지 않아도 앱은 <b>규칙 기반으로 완전히 동작</b>합니다. 키를 넣으면 유형별 답변을 Claude가 새로 써 줍니다.
+        </p>
+        <div class="member-form">
+          <input id="apiKey" type="password" placeholder="sk-ant-... (내 브라우저에만 저장)" autocomplete="off">
+          <button class="ghost" id="saveKey">저장</button>
+          <button class="ghost" id="clearKey">삭제</button>
+        </div>
+        <div class="warnbox">
+          ⚠️ API 키는 이 브라우저의 localStorage에만 저장되고 Anthropic 외 어디로도 전송되지 않습니다.
+          공용 PC에서는 사용 후 반드시 <b>삭제</b>를 누르세요. 사용량만큼 요금이 청구됩니다.
+        </div>
+        <div id="keyState" class="subline" style="margin-top:8px"></div>
+      </div>
+    </details>
+  </section>
+
+  <!-- 결과 -->
+  <main id="result"></main>
+
+  <footer>
+    bymbti · MBTI는 재미로 보는 성격 유형 지표입니다. 역할 배정은 참고용이고, 하고 싶은 걸 하는 게 제일 잘합니다. 🙂
+  </footer>
+</div>
+
+<script src="assets/js/mbti-data.js"></script>
+<script src="assets/js/roles.js"></script>
+<script src="assets/js/analyzer.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/answers.js"></script>
+<script src="assets/js/llm.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
