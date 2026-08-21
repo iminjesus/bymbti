@@ -46,7 +46,7 @@ header.hero { padding: 52px 0 30px; text-align: center; }
 .logo em { font-style: normal; letter-spacing: 1px; }
 .headline {
   margin: 0 0 10px;
-  font-size: clamp(36px, 7.2vw, 62px); font-weight: 900; letter-spacing: -2px;
+  font-size: clamp(34px, 10vw, 62px); font-weight: 900; letter-spacing: -2px;
   line-height: 1.12; color: var(--tx);
   text-shadow: 0 6px 34px rgba(124,108,255,.35);
 }
@@ -181,7 +181,7 @@ button.ghost:hover { border-color: var(--accent); color: var(--tx); }
 .tcard .head .emo { font-size: 30px; }
 .tcard .code { font-size: 21px; font-weight: 900; letter-spacing: -.5px; }
 .tcard .nick { font-size: 12.5px; color: var(--tx3); }
-.tcard .grp { margin-left: auto; font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 3px 9px; }
+.tcard .grp { margin-left: auto; font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 3px 9px; white-space: nowrap; align-self: flex-start; }
 .g-NT .grp { background: rgba(167,139,250,.18); color: var(--nt); }
 .g-NF .grp { background: rgba(74,222,128,.16); color: var(--nf); }
 .g-SJ .grp { background: rgba(96,165,250,.16); color: var(--sj); }
@@ -233,14 +233,34 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
 @media (max-width: 560px) {
   header.hero { padding: 30px 0 18px; }
   .headline { letter-spacing: -1.5px; }
+  /* 워드마크는 헤드라인에 비례해서 줄인다 (데스크톱과 같은 비율 유지) */
+  .logo { font-size: 13px; letter-spacing: .8px; margin-bottom: 11px; }
+  .tagline { font-size: 15.5px; }
+  .subline { font-size: 12.5px; }
   .row.between { flex-direction: column; align-items: stretch; gap: 12px; }
   .tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .tab { padding: 11px 6px; font-size: 13px; text-align: center; }
   button.btn { width: 100%; }
   .member-form input, .member-form select { flex: 1 1 100%; }
   .member-form button { flex: 1 1 calc(50% - 4px); }
-  .chip { font-size: 12.5px; padding: 6px 11px; }
+  .chip { font-size: 12.5px; padding: 7px 13px; }
   .vhead { font-size: 14px; }
+
+  /* 예시 질문 8개가 세로로 쌓이면 화면을 다 잡아먹는다 → 한 줄 가로 스크롤 */
+  .chips {
+    flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    margin-left: -20px; margin-right: -20px; padding: 2px 20px 4px;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; scroll-snap-align: start; }
+
+  /* 섹션 제목 옆의 설명은 아래 줄로 내린다 */
+  .section-title { flex-wrap: wrap; gap: 6px; font-size: 18px; margin: 26px 0 12px; }
+  .section-title small { flex-basis: 100%; }
+  .tcard .nick { font-size: 12px; }
+  .tcard .head { align-items: flex-start; }
 }
 @media print {
   body { background: #fff; color: #000; }
