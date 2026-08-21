@@ -473,8 +473,37 @@
   });
 })();
 
+/* 새 버전이 배포되면 알려준다. 이게 없으면 이미 설치한 사람은 낡은 화면을
+   계속 보게 된다 (서비스 워커가 붙잡고 있는 페이지는 스스로 갱신되지 않는다). */
+function showUpdateBanner() {
+  if (document.getElementById('updateBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'updateBar';
+  bar.className = 'updatebar';
+  bar.innerHTML = '<span>✨ 새 버전이 나왔어요</span><button type="button">새로고침</button>';
+  bar.querySelector('button').addEventListener('click', () => window.location.reload());
+  document.body.appendChild(bar);
+}
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener("statechange", () => {
+          // controller 가 이미 있다 = 기존 버전을 쓰던 중에 새 버전이 깔렸다
+          if (sw.state === "installed" && navigator.serviceWorker.controller) showUpdateBanner();
+        });
+      });
+      reg.update().catch(() => {});          // 앱을 열 때마다 갱신 여부 확인
+    }).catch(() => {});
+
+    // 탭을 다시 열 때도 한 번 더 확인
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+      }
+    });
   });
 }
