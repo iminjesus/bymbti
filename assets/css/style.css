@@ -40,14 +40,17 @@ a { color: var(--accent2); }
 .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px 80px; }
 
 /* 헤더 */
-header.hero { padding: 56px 0 28px; text-align: center; }
-.logo {
-  display: inline-flex; align-items: baseline; gap: 10px;
-  font-size: clamp(34px, 6vw, 54px); font-weight: 800; letter-spacing: -1.5px;
-}
+header.hero { padding: 52px 0 30px; text-align: center; }
+.logo { font-size: 21px; font-weight: 800; letter-spacing: -.5px; }
 .logo b { background: linear-gradient(100deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.logo span { font-size: .42em; color: var(--tx3); font-weight: 600; letter-spacing: 0; }
-.tagline { color: var(--tx2); margin: 10px 0 4px; font-size: 17px; }
+.headline {
+  margin: 8px 0 14px;
+  font-size: clamp(36px, 7.2vw, 62px); font-weight: 900; letter-spacing: -2px;
+  line-height: 1.12; color: var(--tx);
+  text-shadow: 0 6px 34px rgba(124,108,255,.35);
+}
+.tagline { color: var(--tx2); margin: 0 0 5px; font-size: 17px; }
+.tagline b { color: var(--tx); }
 .subline { color: var(--tx3); font-size: 14px; margin: 0; }
 
 /* 카드 공통 */
@@ -227,7 +230,8 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
 
 /* 좁은 화면(폰): 모드 탭과 실행 버튼이 잘리지 않게 세로로 쌓는다 */
 @media (max-width: 560px) {
-  header.hero { padding: 34px 0 20px; }
+  header.hero { padding: 30px 0 18px; }
+  .headline { letter-spacing: -1.5px; }
   .row.between { flex-direction: column; align-items: stretch; gap: 12px; }
   .tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .tab { padding: 11px 6px; font-size: 13px; text-align: center; }
