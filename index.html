@@ -73,6 +73,15 @@
           공용 PC에서는 사용 후 반드시 <b>삭제</b>를 누르세요. 사용량만큼 요금이 청구됩니다.
         </div>
         <div id="keyState" class="subline" style="margin-top:8px"></div>
+
+        <div style="margin-top:16px; border-top:1px solid var(--line); padding-top:14px">
+          <label class="label">앱이 예전 화면 그대로일 때</label>
+          <p class="subline" style="margin-bottom:9px">
+            홈 화면에서 연 앱은 예전 파일을 붙잡고 있을 수 있습니다. 아래 버튼을 누르면
+            저장된 캐시를 전부 비우고 최신 버전을 다시 받아옵니다. (입력한 API 키는 지워지지 않습니다)
+          </p>
+          <button class="ghost" id="hardReset">🔄 캐시 비우고 최신 버전 받기</button>
+        </div>
       </div>
     </details>
   </section>
@@ -81,7 +90,8 @@
   <main id="result"></main>
 
   <footer>
-    bymbti · MBTI는 재미로 보는 성격 유형 지표입니다. 역할 배정은 참고용이고, 하고 싶은 걸 하는 게 제일 잘합니다. 🙂
+    byMBTI <span id="appVersion" class="ver"></span><br>
+    MBTI는 재미로 보는 성격 유형 지표입니다. 역할 배정은 참고용이고, 하고 싶은 걸 하는 게 제일 잘합니다. 🙂
   </footer>
 </div>
 

@@ -1,5 +1,6 @@
 /* bymbti — UI */
 (() => {
+  const APP_VERSION = '6';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -69,6 +70,28 @@
     });
     $('#clearKey').addEventListener('click', () => { LLM.setKey(''); keyState(); });
     keyState();
+
+    $('#appVersion').textContent = `v${APP_VERSION}`;
+    $('#hardReset').addEventListener('click', hardReset);
+  }
+
+  /* 설치된 앱이 옛 파일을 붙잡고 있을 때의 탈출구.
+     서비스 워커를 해제하고 캐시를 전부 지운 뒤 다시 받는다. */
+  async function hardReset(ev) {
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    btn.textContent = '비우는 중…';
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (e) { /* 실패해도 새로고침은 시도한다 */ }
+    window.location.replace(`index.html?fresh=${Date.now()}`);
   }
 
   function keyState() {

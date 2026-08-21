@@ -318,3 +318,5 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
   padding: 7px 15px; cursor: pointer; white-space: nowrap;
 }
 .updatebar button:hover { background: rgba(255,255,255,.35); }
+
+.ver { color: var(--tx3); font-size: 12px; background: #1c2039; border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; margin-left: 4px; }
