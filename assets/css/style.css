@@ -400,9 +400,3 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
   .commit-ans { font-size: 14.5px; }
 }
 
-/* 정답 없음 */
-.noans { background: #0f1122; border: 1px solid var(--line); border-left: 4px solid var(--accent2); border-radius: 12px; padding: 18px 20px; }
-.noans-head { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
-.noans-body { font-size: 14.5px; color: var(--tx2); line-height: 1.65; }
-.noans-body b { color: var(--tx); }
-@media (max-width: 560px) { .noans { padding: 15px 16px; } .noans-head { font-size: 16px; } }

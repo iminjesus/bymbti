@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '11';
+  const APP_VERSION = '12';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -24,7 +24,6 @@
     analysis: null,
     filter: 'ALL',
     aiCache: {},
-    forcePick: false,
   };
 
   /* ── 초기화 ─────────────────────────────────────────────── */
@@ -146,7 +145,6 @@
     }
     state.analysis = analyzeQuestion(q);
     state.aiCache = {};
-    state.forcePick = false;
     render();
     $('#result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -156,9 +154,7 @@
     let html = analysisSection(a);
     if (a.options) html += voteSection(a);
     if (a.pick) html += pickSection(a);
-    else if (a.options) { /* 투표 결과가 곧 확정 답 */ }
-    else if (a.needsPick || state.forcePick) html += commitSection(a);
-    else html += noAnswerSection(a);
+    else if (!a.options) html += commitSection(a);   // 선택지가 있으면 투표 결과가 곧 답
     html += tfSection(a);
     if (a.isAssignment) html += roadmapSection(a);
     html += state.mode === 'team' ? teamSection(a) : '';
@@ -271,13 +267,8 @@
     });
 
     return `
-    <h2 class="section-title">🎯 16유형의 최종 답 <small>틀려도 좋으니 일단 하나씩 찍었습니다</small></h2>
+    <h2 class="section-title">🎯 16유형의 답 <small>같은 질문, 16가지 선택</small></h2>
     <section class="panel">
-      <div class="verdict-line">
-        ${state.forcePick && !a.needsPick
-    ? '🎲 <b>정답은 없지만 찍으라니까 찍었습니다.</b> 이건 답이라기보다 각 유형이 그 상황에서 뭘 할지에 가깝습니다.'
-    : '🎲 <b>고민은 여기까지.</b> 선택지를 안 주셔서 16유형이 각자 알아서 하나씩 골랐습니다. 틀릴 수도 있지만 이유는 전부 붙어 있습니다.'}
-      </div>
       <div class="commits">
         ${rows.map((r) => `
           <div class="commit-row">
@@ -287,30 +278,6 @@
               <div class="commit-why">${esc(r.why)}</div>
             </div>
           </div>`).join('')}
-      </div>
-    </section>`;
-  }
-
-  /* ── 1.6c 정답이 없는 질문 ─────────────────────────────── */
-  function noAnswerSection(a) {
-    const emo = !a.isAssignment && a.scene.id === 'emotion';
-    const head = emo
-      ? '이건 정답이 없는 질문입니다.'
-      : '이건 딱 떨어지는 답이 있는 질문이 아닙니다.';
-    const body = emo
-      ? '찍을 게 아니라 <b>반응할 일</b>이에요. 여기서 해결책부터 꺼내면 그게 바로 "T발 너 C야?" 소리 듣는 지점입니다.'
-      : '뭘 고르라는 질문이 아니라서 억지로 하나 찍는 게 오히려 이상합니다.';
-
-    return `
-    <h2 class="section-title">🫥 정답 없음 <small>모든 질문에 답이 있는 건 아닙니다</small></h2>
-    <section class="panel">
-      <div class="noans">
-        <div class="noans-head">🫂 ${head}</div>
-        <div class="noans-body">${body}</div>
-        <div class="noans-body" style="margin-top:8px">
-          대신 아래 <b>MBTI별 반응</b>을 보세요. 16명이 각자 어떻게 받아주는지가 답에 가깝습니다.
-        </div>
-        <button class="btn" id="forcePick" style="margin-top:14px">🎲 그래도 하나 찍어줘</button>
       </div>
     </section>`;
   }
@@ -537,9 +504,6 @@
       render();
     }));
 
-    const force = $('#forcePick');
-    if (force) force.addEventListener('click', () => { state.forcePick = true; render(); });
-
     const copyBtn = $('#copyAll');
     if (copyBtn) copyBtn.addEventListener('click', copyAll);
 
@@ -603,9 +567,9 @@
       lines.push('');
     }
 
-    if (!a.pick && !a.options && (a.needsPick || state.forcePick)) {
+    if (!a.pick && !a.options) {
       const sid = a.isAssignment ? 'assignment' : a.scene.id;
-      lines.push('■ 16유형의 최종 답');
+      lines.push('■ 16유형의 답');
       PICK_ORDER.forEach((code) => {
         const r = commitFor(MBTI_BY_CODE[code], sid);
         lines.push(`- ${code}: ${r.answer} (${r.why})`);

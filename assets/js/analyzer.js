@@ -145,12 +145,6 @@ function analyzeQuestion(text) {
   const options = isAssignment ? null : extractOptions(q);
   const pick = isAssignment ? null : detectNumberPick(q);
 
-  /* 이 질문이 "찍어야 하는" 질문인가.
-     "짜장면 먹을까 짬뽕 먹을까"는 찍어야 하지만
-     "내가 슬퍼서 빵을 샀어"는 정답이 없다. 억지로 답을 내면 그게 T발이다. */
-  const DECISION = /(뭐\s*먹|뭐\s*하지|뭐\s*할|어디|골라|고를|고르|찍어|찍을|뽑|정해|정할|추천|살까|갈까|할까|볼까|먹을까|입을까|챙길까|어느|몇\s*번|번호|나을까|좋을까|괜찮을까|말까|어떡하지|어쩌지)/;
-  const WH_QUESTION = /[?？]\s*$/.test(q) && /(뭐|무엇|어디|언제|누가|누구|어느|몇|어떻게|왜)/.test(q);
-  const needsPick = Boolean(pick) || Boolean(options) || isAssignment || DECISION.test(q) || WH_QUESTION;
 
   /* 1) 과제라면 어떤 유형의 과제인지 */
   const kindHits = !isAssignment ? [] : TASK_KINDS.map((k) => {
@@ -217,7 +211,6 @@ function analyzeQuestion(text) {
     roleLookup,
     options,
     pick,
-    needsPick,
     kinds,
     kindLabel: isAssignment ? (primary ? primary.label : '일반 탐구형 과제') : scene.label,
     kindEmoji: isAssignment ? (primary ? primary.emoji : '🧭') : scene.emoji,
