@@ -296,8 +296,8 @@
         <span class="grp">${t.groupInfo.emoji} ${esc(t.groupInfo.label)}</span>
       </div>
 
-      <div class="meme">${esc(t.meme)}
-        <div class="memetags">${t.memeTags.map((m) => `<span>${esc(m)}</span>`).join('')}</div>
+      <div class="meme">${esc(c.meme)}
+        <div class="memetags">${c.tags.map((m) => `<span>${esc(m)}</span>`).join('')}</div>
       </div>
 
       <div class="roleline">

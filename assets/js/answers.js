@@ -156,10 +156,27 @@ const QUOTE_TEMPLATES = {
   Fe: (t) => `"${t}" 다들 어떻게 생각해? 일단 한 명씩 의견 듣고 갈게!`,
 };
 
+/* 밈 대사: 상황이 잡혔으면 그 상황용 대사로, 없으면 유형 기본 대사로 */
+function memeFor(type, analysis) {
+  if (analysis.isAssignment) return type.meme;
+  const pack = SCENE_MEMES[analysis.scene.id];
+  return (pack && pack[type.code]) || type.meme;
+}
+
+/* 밈 태그: 6개 풀에서 상황마다 다른 3개를 고정적으로 뽑는다 */
+function tagsFor(type, analysis) {
+  const pool = type.memeTags;
+  const key = analysis.isAssignment ? 'assignment' : analysis.scene.id;
+  const start = hashCode(type.code + '|' + key) % pool.length;
+  return [0, 1, 2].map((i) => pool[(start + i) % pool.length]);
+}
+
 /* 유형별 최종 카드 데이터 */
 function buildTypeCard(type, analysis, assignment) {
   return {
     type,
+    meme: memeFor(type, analysis),
+    tags: tagsFor(type, analysis),
     answer: buildAnswer(type, analysis),
     primary: assignment.primary,
     secondary: assignment.secondary,
