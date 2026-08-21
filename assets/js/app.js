@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '7';
+  const APP_VERSION = '8';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -151,6 +151,7 @@
     const a = state.analysis;
     let html = analysisSection(a);
     if (a.options) html += voteSection(a);
+    html += tfSection(a);
     if (a.isAssignment) html += roadmapSection(a);
     html += state.mode === 'team' ? teamSection(a) : '';
     html += typesSection(a);
@@ -218,6 +219,63 @@
             <div class="vbar"><i style="width:${Math.round((list.length / 16) * 100)}%"></i></div>
             <div class="vtypes">${list.map((t) => `<span>${t.emoji} ${t.code}</span>`).join('')}</div>
           </div>`).join('')}
+      </div>
+    </section>`;
+  }
+
+  /* ── 1.7 T vs F 대격돌 ─────────────────────────────────── */
+  function tfSection(a) {
+    const key = a.isAssignment ? 'assignment' : a.scene.id;
+    const tf = TF_TALK[key] || TF_TALK.daily;
+    const risk = tRiskOf(a.weights);
+    const band = tRiskBand(risk);
+    const side = (ch) => MBTI.filter((t) => t.code[2] === ch);
+
+    const chips = (list) => list.map((t) => `<span>${t.emoji} ${t.code}</span>`).join('');
+
+    return `
+    <h2 class="section-title">⚔️ T vs F <small>같은 상황, 정반대 대답 — MBTI 최대 떡밥</small></h2>
+    <section class="panel">
+
+      <div class="trisk">
+        <div class="trisk-head">
+          <b>${band.emoji} T발지수 ${risk}%</b>
+          <span class="trisk-band">${esc(band.label)}</span>
+        </div>
+        <div class="trisk-bar"><i style="width:${risk}%"></i></div>
+        <div class="trisk-text">${esc(band.text)}</div>
+      </div>
+
+      <div class="duel">
+        <div class="duel-side t">
+          <div class="duel-head">🧊 T 진영 <em>${esc(tf.tLabel)}</em></div>
+          <div class="duel-line">${esc(tf.tLine)}</div>
+          <div class="duel-types">${chips(side('T'))}</div>
+        </div>
+        <div class="duel-vs">VS</div>
+        <div class="duel-side f">
+          <div class="duel-head">💗 F 진영 <em>${esc(tf.fLabel)}</em></div>
+          <div class="duel-line">${esc(tf.fLine)}</div>
+          <div class="duel-types">${chips(side('F'))}</div>
+        </div>
+      </div>
+
+      <div class="clash">⚡ <b>충돌 지점</b> — ${esc(tf.clash)}</div>
+
+      <div class="block" style="margin-top:16px">
+        <div class="h">🔁 같은 말인데 이렇게 들린다</div>
+        <div class="heard">
+          ${tf.heard.map((h) => `
+            <div class="heard-row">
+              <div class="heard-said ${h.side === 'T' ? 't' : 'f'}">
+                <span class="who">${h.side}가 한 말</span>${esc(h.said)}
+              </div>
+              <div class="heard-arrow">→</div>
+              <div class="heard-got ${h.side === 'T' ? 'f' : 't'}">
+                <span class="who">${h.side === 'T' ? 'F' : 'T'}가 들은 말</span>${esc(h.heard)}
+              </div>
+            </div>`).join('')}
+        </div>
       </div>
     </section>`;
   }
@@ -441,6 +499,17 @@
         .forEach(([label, list]) => lines.push(`- ${label}: ${list.length}표 (${list.join(', ')})`));
       lines.push('');
     }
+
+    const tfKey = a.isAssignment ? 'assignment' : a.scene.id;
+    const tf = TF_TALK[tfKey] || TF_TALK.daily;
+    const risk = tRiskOf(a.weights);
+    lines.push('■ T vs F');
+    lines.push(`- T발지수 ${risk}% (${tRiskBand(risk).label})`);
+    lines.push(`- T 진영 (${tf.tLabel}): ${tf.tLine}`);
+    lines.push(`- F 진영 (${tf.fLabel}): ${tf.fLine}`);
+    lines.push(`- 충돌 지점: ${tf.clash}`);
+    tf.heard.forEach((h) => lines.push(`- ${h.side}가 한 말 ${h.said} → ${h.side === 'T' ? 'F' : 'T'}가 들은 말 ${h.heard}`));
+    lines.push('');
 
     if (state.mode === 'team' && state.members.length) {
       lines.push(`■ ${w.team} ${w.role} 배정`);
