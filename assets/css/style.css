@@ -224,6 +224,19 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
   .assign-card { grid-template-columns: 44px 1fr; }
   .cards { grid-template-columns: 1fr; }
 }
+
+/* 좁은 화면(폰): 모드 탭과 실행 버튼이 잘리지 않게 세로로 쌓는다 */
+@media (max-width: 560px) {
+  header.hero { padding: 34px 0 20px; }
+  .row.between { flex-direction: column; align-items: stretch; gap: 12px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .tab { padding: 11px 6px; font-size: 13px; text-align: center; }
+  button.btn { width: 100%; }
+  .member-form input, .member-form select { flex: 1 1 100%; }
+  .member-form button { flex: 1 1 calc(50% - 4px); }
+  .chip { font-size: 12.5px; padding: 6px 11px; }
+  .vhead { font-size: 14px; }
+}
 @media print {
   body { background: #fff; color: #000; }
   .ask, .tabs, .chips, button, details.adv { display: none !important; }
@@ -248,4 +261,17 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
   font-size: 15px; color: #fff; line-height: 1.7;
   background: linear-gradient(135deg, rgba(124,108,255,.22), rgba(255,122,198,.14));
   border: 1px solid rgba(124,108,255,.4); border-radius: 12px; padding: 13px 15px;
+}
+
+/* 설치형 앱(standalone)으로 열렸을 때: 노치·홈바 영역을 피한다 */
+@supports (padding: env(safe-area-inset-top)) {
+  .wrap {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  header.hero { padding-top: calc(56px + env(safe-area-inset-top)); }
+}
+@media (display-mode: standalone) {
+  header.hero { padding-top: calc(28px + env(safe-area-inset-top, 0px)); }
 }

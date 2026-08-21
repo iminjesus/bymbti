@@ -75,9 +75,25 @@
 
 ---
 
-## 실행 방법
+## 앱으로 설치하기 (PWA)
 
-정적 사이트라 빌드가 필요 없습니다. `index.html`을 브라우저로 열기만 하면 됩니다.
+설치형 웹앱입니다. 홈 화면에 추가하면 **주소창 없이 전체화면**으로 뜨고, **오프라인에서도 그대로 동작**합니다. 스토어를 거치지 않습니다.
+
+먼저 GitHub Pages 주소로 접속하세요 → `https://iminjesus.github.io/bymbti/`
+
+| 기기 | 설치 방법 |
+|---|---|
+| **Android (Chrome)** | 우측 상단 `⋮` → **앱 설치** (또는 하단에 뜨는 "홈 화면에 추가" 배너) |
+| **iPhone / iPad (Safari)** | 하단 **공유 버튼** `⬆️` → **홈 화면에 추가** |
+| **Windows / macOS (Chrome·Edge)** | 주소창 오른쪽 **설치 아이콘** `⊕` → **설치** |
+
+> ⚠️ 설치 기능은 `https://` 또는 `localhost` 에서만 동작합니다. `index.html`을 파일로 직접 열면(`file://`) 앱 설치와 오프라인 캐시는 켜지지 않습니다. 앱 기능은 안 되지만 나머지 기능은 전부 정상입니다.
+
+---
+
+## 그냥 실행하기
+
+정적 사이트라 빌드가 필요 없습니다.
 
 ```powershell
 # Windows (PowerShell)
@@ -93,7 +109,7 @@ cd bymbti
 open index.html      # Linux 는 xdg-open index.html
 ```
 
-로컬 서버로 띄우고 싶다면:
+설치·오프라인까지 확인하려면 로컬 서버로 띄우세요:
 
 ```bash
 python -m http.server 8000   # → http://localhost:8000
@@ -118,6 +134,10 @@ python -m http.server 8000   # → http://localhost:8000
 
 ```
 index.html
+manifest.json          PWA 매니페스트 (이름·아이콘·standalone 표시)
+sw.js                  서비스 워커 — network-first, 오프라인 폴백
+icon-192.png / icon-512.png / icon-maskable-512.png
+apple-touch-icon.png / favicon-64.png / icon.svg
 assets/
   css/style.css
   js/
@@ -128,8 +148,11 @@ assets/
     engine.js      포지션 배정 알고리즘 + 케미 진단
     answers.js     MBTI별 예상 정답 생성
     llm.js         (선택) Claude API 호출
-    app.js         UI
+    app.js         UI + 서비스 워커 등록
 ```
+
+> 코드를 고친 뒤 캐시를 확실히 갈아엎으려면 `sw.js` 상단의 `CACHE` 값을 올리세요 (`bymbti-v1` → `bymbti-v2`).
+> 평소에는 network-first라 새로고침만 해도 최신이 반영됩니다.
 
 ---
 

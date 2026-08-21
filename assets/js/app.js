@@ -469,6 +469,12 @@
   document.addEventListener('DOMContentLoaded', () => {
     init();
     renderMembers();
-    $('#result').innerHTML = '<div class="panel empty">질문을 입력하고 <b>역할 배정하기</b>를 눌러 주세요. 예시 버튼을 눌러도 바로 시작됩니다. 👆</div>';
+    $('#result').innerHTML = '<div class="panel empty">질문을 입력하고 <b>답 받아보기</b>를 눌러 주세요. 예시 버튼을 눌러도 바로 시작됩니다. 👆</div>';
   });
 })();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
