@@ -336,8 +336,6 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
 .duel-head { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
 .duel-head em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--tx3); margin-left: 5px; }
 .duel-line { font-size: 15px; line-height: 1.6; color: var(--tx); min-height: 3em; }
-.duel-types { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 11px; }
-.duel-types span { font-size: 11.5px; background: #232748; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; color: var(--tx2); }
 .duel-vs { align-self: center; font-size: 15px; font-weight: 900; color: var(--tx3); letter-spacing: .5px; }
 
 .clash { margin-top: 14px; font-size: 14px; color: var(--tx2); background: rgba(255,200,87,.09); border: 1px solid rgba(255,200,87,.3); border-radius: 11px; padding: 11px 15px; }
@@ -400,3 +398,11 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
   .commit-ans { font-size: 14.5px; }
 }
 
+
+/* 유형 카드의 접히는 상세 */
+details.more { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+details.more summary { cursor: pointer; color: var(--tx3); font-size: 12.5px; font-weight: 700; list-style: none; }
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary:hover { color: var(--tx2); }
+details.more[open] summary { margin-bottom: 4px; }
+.trap { font-size: 12.5px; }

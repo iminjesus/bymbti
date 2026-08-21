@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '12';
+  const APP_VERSION = '13';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -186,14 +186,12 @@
         <div class="meta"><div class="k">${w.unit} 유형</div><div class="v">${a.kindEmoji} ${esc(a.kindLabel)}</div></div>
         <div class="meta"><div class="k">핵심 주제</div><div class="v">${esc(a.topic)}</div></div>
         <div class="meta"><div class="k">${third.k}</div><div class="v">${third.v}</div></div>
-        <div class="meta"><div class="k">${a.isAssignment ? '추천 결과물' : '이 앱이 줄 답'}</div><div class="v" style="font-size:14px">${esc(a.output)}</div></div>
       </div>
       <div class="tagline-pills">
         ${a.topTraits.length
     ? `<span class="pill">이 ${w.unit}에 특히 필요한 역량</span>` + a.topTraits.map((t) => `<span class="pill">${esc(t.label)}</span>`).join('')
     : '<span class="pill">특정 역량 편중 없음 — 균형 배정</span>'}
       </div>
-      ${a.keywords.length ? `<div class="tagline-pills">${a.keywords.map((k) => `<span class="pill" style="background:#232748;border-color:var(--line);color:var(--tx2)">#${esc(k)}</span>`).join('')}</div>` : ''}
     </section>`;
   }
 
@@ -288,10 +286,6 @@
     const tf = TF_TALK[key] || TF_TALK.daily;
     const risk = tRiskOf(a.weights);
     const band = tRiskBand(risk);
-    const side = (ch) => MBTI.filter((t) => t.code[2] === ch);
-
-    const chips = (list) => list.map((t) => `<span>${t.emoji} ${t.code}</span>`).join('');
-
     return `
     <h2 class="section-title">⚔️ T vs F <small>같은 상황, 정반대 대답 — MBTI 최대 떡밥</small></h2>
     <section class="panel">
@@ -309,13 +303,11 @@
         <div class="duel-side t">
           <div class="duel-head">🧊 T 진영 <em>${esc(tf.tLabel)}</em></div>
           <div class="duel-line">${esc(tf.tLine)}</div>
-          <div class="duel-types">${chips(side('T'))}</div>
         </div>
         <div class="duel-vs">VS</div>
         <div class="duel-side f">
           <div class="duel-head">💗 F 진영 <em>${esc(tf.fLabel)}</em></div>
           <div class="duel-line">${esc(tf.fLine)}</div>
-          <div class="duel-types">${chips(side('F'))}</div>
         </div>
       </div>
 
@@ -379,8 +371,7 @@
               <div class="role">${x.role.emoji} ${esc(x.role.name)}</div>
               <div class="duty">${esc(x.role.duty)}</div>
               <div class="mission">🎯 첫 미션 — ${esc(x.role.mission)}</div>
-              <div class="why">📌 ${esc(x.reason)}<br>🗒️ ${esc(x.note)}</div>
-              <div class="why">😈 조별과제 빌런 포인트 — ${esc(x.type.villain)}</div>
+              <div class="why">📌 ${esc(x.note)}</div>
             </div>
           </div>`).join('')}
       </div>
@@ -456,7 +447,7 @@
       <div class="block">
         <div class="h">${c.answer.verdict ? '🧠 왜 그렇게 답하냐면' : '💬 예상 정답'}</div>
         <div class="p">${esc(c.answer.body)}</div>
-        <ul>${c.answer.bullets.map((b) => `<li><b>${esc(b.label)}</b> — ${esc(b.text)}</li>`).join('')}</ul>
+        ${c.answer.bullets.length ? `<ul>${c.answer.bullets.map((b) => `<li><b>${esc(b.label)}</b> — ${esc(b.text)}</li>`).join('')}</ul>` : ''}
       </div>
 
       ${c.answer.verdict ? '' : `
@@ -465,30 +456,31 @@
         <div class="quote">${esc(c.answer.quote)}</div>
       </div>`}
 
-      <div class="block">
-        <div class="h">🧠 인지기능 스택</div>
-        <div class="p" style="font-size:13.5px;color:var(--tx2)">
-          ${t.stack.map((f, i) => `${['주', '부', '3차', '열등'][i]} ${f}(${FUNCTIONS[f].name})`).join(' → ')}
+      <div class="trap">⚠️ ${esc(t.caution)}</div>
+
+      <details class="more">
+        <summary>▸ 인지기능 · 강점 · 역량 더 보기</summary>
+        <div class="block">
+          <div class="h">🧠 인지기능 스택</div>
+          <div class="p" style="font-size:13.5px;color:var(--tx2)">
+            ${t.stack.map((f, i) => `${['주', '부', '3차', '열등'][i]} ${f}(${FUNCTIONS[f].name})`).join(' → ')}
+          </div>
         </div>
-      </div>
-
-      <div class="block">
-        <div class="h">⭐ 이 유형의 강점</div>
-        <ul>${t.strengths.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
-      </div>
-
-      <div class="block">
-        <div class="h">📊 역량 프로필</div>
-        <div class="bars">
-          ${barTraits.map((k) => `<div class="bar"><span>${TRAIT_LABELS[k]}</span>
-            <span class="t"><i style="width:${t.traits[k]}%"></i></span><span>${t.traits[k]}</span></div>`).join('')}
+        <div class="block">
+          <div class="h">⭐ 이 유형의 강점</div>
+          <ul>${t.strengths.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
         </div>
-      </div>
-
-      <div class="trap">⚠️ 주의 — ${esc(t.caution)} (열등기능 ${t.stack[3]}: ${esc(c.answer.trap)})</div>
-      <div class="block"><div class="h">🤝 이 ${w.unit}에서 잘 맞는 짝</div>
-        <div class="p" style="font-size:13.5px">${c.partner.emoji} <b>${c.partner.code}</b> — ${esc(c.partner.teamLine)}</div>
-      </div>
+        <div class="block">
+          <div class="h">📊 역량 프로필</div>
+          <div class="bars">
+            ${barTraits.map((k) => `<div class="bar"><span>${TRAIT_LABELS[k]}</span>
+              <span class="t"><i style="width:${t.traits[k]}%"></i></span><span>${t.traits[k]}</span></div>`).join('')}
+          </div>
+        </div>
+        <div class="block"><div class="h">🤝 이 ${w.unit}에서 잘 맞는 짝</div>
+          <div class="p" style="font-size:13.5px">${c.partner.emoji} <b>${c.partner.code}</b> — ${esc(c.partner.teamLine)}</div>
+        </div>
+      </details>
 
       <div class="row" style="margin-top:12px">
         ${LLM.hasKey() ? `<button class="ghost" data-ai="${t.code}">✨ AI로 다시 쓰기</button>` : ''}
