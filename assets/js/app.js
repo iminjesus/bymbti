@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '9';
+  const APP_VERSION = '10';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -154,6 +154,7 @@
     let html = analysisSection(a);
     if (a.options) html += voteSection(a);
     if (a.pick) html += pickSection(a);
+    else if (!a.options) html += commitSection(a);
     html += tfSection(a);
     if (a.isAssignment) html += roadmapSection(a);
     html += state.mode === 'team' ? teamSection(a) : '';
@@ -251,6 +252,34 @@
             <div>
               <div class="pick-who">${r.t.emoji} <b>${r.t.code}</b> <em>${esc(r.t.nickname)}</em></div>
               <div class="pick-why">${esc(r.why)}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </section>`;
+  }
+
+  /* ── 1.6b 최종 답 (선택지도 숫자도 없을 때) ─────────────── */
+  function commitSection(a) {
+    const sceneId = a.isAssignment ? 'assignment' : a.scene.id;
+    const rows = PICK_ORDER.map((code) => {
+      const t = MBTI_BY_CODE[code];
+      return { t, ...commitFor(t, sceneId) };
+    });
+
+    return `
+    <h2 class="section-title">🎯 16유형의 최종 답 <small>틀려도 좋으니 일단 하나씩 찍었습니다</small></h2>
+    <section class="panel">
+      <div class="verdict-line">
+        🎲 <b>고민은 여기까지.</b> 선택지를 안 주셔서 16유형이 각자 알아서 하나씩 골랐습니다.
+        틀릴 수도 있지만 전부 이유는 붙어 있습니다. 마음에 드는 답을 고른 유형을 따라가세요.
+      </div>
+      <div class="commits">
+        ${rows.map((r) => `
+          <div class="commit-row">
+            <div class="commit-type"><span class="ce">${r.t.emoji}</span><b>${r.t.code}</b></div>
+            <div>
+              <div class="commit-ans">${esc(r.answer)}</div>
+              <div class="commit-why">${esc(r.why)}</div>
             </div>
           </div>`).join('')}
       </div>
@@ -539,6 +568,16 @@
       MBTI.map((t) => ({ t, ...pickFor(t, a.pick) }))
         .sort((x, y) => x.num - y.num || x.rank - y.rank)
         .forEach((r) => lines.push(`- ${r.num}번 ${r.t.code}: ${r.why}`));
+      lines.push('');
+    }
+
+    if (!a.pick && !a.options) {
+      const sid = a.isAssignment ? 'assignment' : a.scene.id;
+      lines.push('■ 16유형의 최종 답');
+      PICK_ORDER.forEach((code) => {
+        const r = commitFor(MBTI_BY_CODE[code], sid);
+        lines.push(`- ${code}: ${r.answer} (${r.why})`);
+      });
       lines.push('');
     }
 
