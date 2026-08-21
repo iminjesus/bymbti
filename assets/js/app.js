@@ -1,12 +1,14 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '8';
+  const APP_VERSION = '9';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const EXAMPLES = [
     '오늘 짜장면 먹을까 짬뽕 먹을까',
+    '오징어게임 다리 건너기, 1~16번 중에 몇 번 고를래?',
+    '내가 슬퍼서 빵을 샀어',
     '오늘 비 온다는데 우산 챙길까 말까',
     '읽씹 3일째인데 내가 먼저 연락할까',
     '이거 지금 살까 다음 달에 살까',
@@ -151,6 +153,7 @@
     const a = state.analysis;
     let html = analysisSection(a);
     if (a.options) html += voteSection(a);
+    if (a.pick) html += pickSection(a);
     html += tfSection(a);
     if (a.isAssignment) html += roadmapSection(a);
     html += state.mode === 'team' ? teamSection(a) : '';
@@ -218,6 +221,37 @@
             <div class="vhead"><b>${esc(label)}</b><span>${list.length}표</span></div>
             <div class="vbar"><i style="width:${Math.round((list.length / 16) * 100)}%"></i></div>
             <div class="vtypes">${list.map((t) => `<span>${t.emoji} ${t.code}</span>`).join('')}</div>
+          </div>`).join('')}
+      </div>
+    </section>`;
+  }
+
+  /* ── 1.6 번호 배정표 ("몇 번 고를래?") ─────────────────── */
+  function pickSection(a) {
+    const rows = MBTI
+      .map((t) => ({ t, ...pickFor(t, a.pick) }))
+      .sort((x, y) => x.num - y.num || x.rank - y.rank);
+
+    const span = a.pick.hi - a.pick.lo;
+    const first = rows[0];
+    const last = rows[rows.length - 1];
+
+    return `
+    <h2 class="section-title">🔢 16유형 번호 배정표 <small>${esc(a.pick.label)} · 같은 판, 16가지 계산</small></h2>
+    <section class="panel">
+      <div class="verdict-line">
+        🥇 제일 먼저 부르는 건 <b>${first.t.code}</b>(${first.num}번),
+        끝까지 기다리는 건 <b>${last.t.code}</b>(${last.num}번).
+        앞으로 갈수록 정보가 없고, 뒤로 갈수록 시간이 없습니다.
+      </div>
+      <div class="picks">
+        ${rows.map((r) => `
+          <div class="pick-row">
+            <div class="pick-num" style="--h:${Math.round(210 + (span ? (r.num - a.pick.lo) / span : 0.5) * 120)}">${r.num}</div>
+            <div>
+              <div class="pick-who">${r.t.emoji} <b>${r.t.code}</b> <em>${esc(r.t.nickname)}</em></div>
+              <div class="pick-why">${esc(r.why)}</div>
+            </div>
           </div>`).join('')}
       </div>
     </section>`;
@@ -497,6 +531,14 @@
       lines.push('■ 16유형 투표 결과');
       Object.entries(tally).sort((x, y) => y[1].length - x[1].length)
         .forEach(([label, list]) => lines.push(`- ${label}: ${list.length}표 (${list.join(', ')})`));
+      lines.push('');
+    }
+
+    if (a.pick) {
+      lines.push(`■ 번호 배정표 (${a.pick.label})`);
+      MBTI.map((t) => ({ t, ...pickFor(t, a.pick) }))
+        .sort((x, y) => x.num - y.num || x.rank - y.rank)
+        .forEach((r) => lines.push(`- ${r.num}번 ${r.t.code}: ${r.why}`));
       lines.push('');
     }
 

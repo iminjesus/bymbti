@@ -143,6 +143,7 @@ function analyzeQuestion(text) {
   const roleSet = isAssignment ? ROLES : scene.positions;
   const roleLookup = Object.fromEntries(roleSet.map((r) => [r.id, r]));
   const options = isAssignment ? null : extractOptions(q);
+  const pick = isAssignment ? null : detectNumberPick(q);
 
   /* 1) 과제라면 어떤 유형의 과제인지 */
   const kindHits = !isAssignment ? [] : TASK_KINDS.map((k) => {
@@ -208,6 +209,7 @@ function analyzeQuestion(text) {
     roleSet,
     roleLookup,
     options,
+    pick,
     kinds,
     kindLabel: isAssignment ? (primary ? primary.label : '일반 탐구형 과제') : scene.label,
     kindEmoji: isAssignment ? (primary ? primary.emoji : '🧭') : scene.emoji,

@@ -209,6 +209,44 @@ const SCENES = {
     },
   },
 
+  pick: {
+    id: 'pick', label: '번호 · 순서 고르기', emoji: '🔢', weight: 5,
+    detect: ['고를래', '골라', '고르면', '고르라', '찍어', '찍을', '뽑으', '뽑을', '뽑기',
+      '몇 번', '몇번', '번호', '오징어게임', '유리다리', '유리 다리', '다리 건너', '제비뽑기', '사다리'],
+    boost: { analysis: 1.4, leadership: 1.3, detail: 1.2 },
+    output: '유형별로 실제로 찍는 번호 + 그 번호를 고른 이유',
+    positions: [
+      { id: 'first', name: '먼저 가는 사람', emoji: '🥇', anchor: true, need: { leadership: 1.0, execution: .8 }, duty: '눈치 안 보고 제일 먼저 번호를 부른다.', mission: '남들 고민할 때 먼저 선언하고 자리 잡기.', warn: '먼저 간다고 유리한 판인지는 확인하자.' },
+      { id: 'watch', name: '뒤에서 관찰하는 사람', emoji: '🔭', need: { analysis: 1.0, detail: .8 }, duty: '앞사람들이 어떻게 되는지 다 보고 움직인다.', mission: '앞 순번 3명의 결과를 기록해두기.', warn: '너무 뒤면 정보는 많은데 시간이 없다.' },
+      { id: 'gut', name: '감으로 찍는 사람', emoji: '🎲', need: { ideation: 1.0, presentation: .5 }, duty: '이유 없이 끌리는 숫자를 그냥 부른다.', mission: '3초 안에 하나 부르고 뒤돌아보지 않기.', warn: '나중에 이유를 만들어내지는 말자.' },
+      { id: 'calc', name: '확률 계산하는 사람', emoji: '📐', need: { detail: 1.0, analysis: .9 }, duty: '기대값이랑 남은 경우의 수를 따진다.', mission: '계산 결과를 한 줄로 요약해서 공유하기.', warn: '계산 끝나기 전에 판이 끝날 수 있다.' },
+      { id: 'left', name: '남는 번호 가져가는 사람', emoji: '🙋', need: { harmony: 1.0, detail: .4 }, duty: '다들 고르고 남은 걸 조용히 집는다.', mission: '한 번쯤은 원하는 번호를 먼저 말해보기.', warn: '매번 양보하면 매번 나쁜 자리다.' },
+      { id: 'trade', name: '번호 교환 협상가', emoji: '🗣️', need: { persuasion: 1.0, execution: .7 }, duty: '원하는 번호를 가진 사람과 딜을 시도한다.', mission: '교환 조건 하나 만들어서 제안하기.', warn: '거절당해도 분위기는 유지하자.' },
+      { id: 'jinx', name: '징크스 따지는 사람', emoji: '🍀', need: { design: 1.0, detail: .6 }, duty: '생일, 좋아하는 숫자, 4는 피하기 같은 걸 챙긴다.', mission: '왜 그 숫자인지 한 문장으로 설명하기.', warn: '통계적 근거는 없다. 알고는 있자.' },
+      { id: 'freeze', name: '끝까지 못 고르는 사람', emoji: '🫣', need: { ideation: .8, harmony: .8 }, duty: '고민하다 결국 남은 걸 받는다.', mission: '후보를 두 개로 줄이고 동전 던지기.', warn: '안 고르는 것도 고르는 것이다.' },
+    ],
+    approach: {
+      Ni: '전체 판이 어떻게 흘러갈지 그려놓고 유리한 자리를 잡는다',
+      Ne: '아무도 안 볼 것 같은 번호를 일부러 고른다',
+      Si: '전에 이런 판에서 어느 자리가 괜찮았는지 떠올린다',
+      Se: '고민 없이 지금 끌리는 걸 바로 부른다',
+      Ti: '기대값과 남은 경우의 수를 따져서 최적을 찾는다',
+      Te: '기준 정하고 바로 선언한다. 남들보다 먼저',
+      Fi: '자기한테 의미 있는 숫자를 고른다',
+      Fe: '남들 고르는 거 보고 겹치지 않게 맞춘다',
+    },
+    verdict: {
+      Ni: '순서 자체보다 판이 어떻게 굴러갈지가 중요해. 나는 흐름 보고 정할게.',
+      Ne: '남들 다 피하는 번호가 오히려 나을 수도 있어. 반대로 가보자.',
+      Si: '전에 이런 거 해봤는데 그때 그 자리가 나쁘지 않았어.',
+      Se: '고민할 시간에 그냥 불러. 나 이미 정했어.',
+      Ti: '경우의 수 따져보면 답이 좁혀져. 계산해줄까?',
+      Te: '기준 정하고 바로 간다. 남들 고민하는 사이에 끝내는 게 이득이야.',
+      Fi: '숫자에도 취향이 있잖아. 나는 내 걸로 갈게.',
+      Fe: '다들 뭐 골랐어? 겹치는 사람 없게만 하자.',
+    },
+  },
+
   choice: {
     id: 'choice', label: '양자택일', emoji: '⚖️', weight: 2,
     detect: ['골라', '고를까', '선택', '어느 쪽', '뭐가 나아', '뭐가 좋을까', '살까', '할까 말까', '갈까'],
@@ -465,6 +503,24 @@ const SCENE_LIST = Object.values(SCENES);
  * (없으면 mbti-data.js 의 기본 meme 으로 폴백)
  */
 const SCENE_MEMES = {
+  pick: {
+    ISTJ: '"앞은 정보가 없고 뒤는 시간이 없어. 그 사이가 답이야."',
+    ISFJ: '"난 중간 할게. 앞뒤는 좀 부담스러워…"',
+    INFJ: '"왠지 그 번호가 맞는 느낌인데. 설명은 못 해."',
+    INTJ: '"맨 뒤. 앞사람들이 데이터를 만들어 줄 거야."',
+    ISTP: '"앞에서 대충 보고 판단할게. 급할 거 없잖아."',
+    ISFP: '"그냥… 숫자 모양이 마음에 들어서."',
+    INFP: '"이 숫자 좋아해. 어릴 때부터."',
+    INTP: '"이유 세 개 댈 수 있는데 다 갖다 붙인 거야."',
+    ESTP: '"먼저 갈게. 기다리는 게 더 고문이야."',
+    ESFP: '"앞쪽! 앞쪽이 신나잖아!"',
+    ENFP: '"아 몰라 느낌 왔어! 이거!"',
+    ENTP: '"다들 뒤 노릴 거잖아. 그래서 나는 그 바로 앞."',
+    ESTJ: '"1번. 순서대로 하는 게 맞지."',
+    ESFJ: '"다들 뭐 골랐어? 겹치면 안 되니까 말해줘 🙏"',
+    ENFJ: '"먼저 골라. 난 남는 거 할게."',
+    ENTJ: '"계산 끝났어. 선점 효과 챙기고 실험대는 피한다."',
+  },
   emotion: {
     ISTJ: '"언제부터 그랬어? 순서대로 말해봐."',
     ISFJ: '"밥은 먹었어? 일단 그거부터…"',
@@ -616,6 +672,15 @@ const SCENE_MEMES = {
  * 그리고 그 말이 상대에게 어떻게 들리는지("T발 너 C야?"의 발원지).
  */
 const TF_TALK = {
+  pick: {
+    tLabel: '기대값 계산', tLine: '"경우의 수 따져보면 유리한 자리 나와."',
+    fLabel: '느낌과 배려', fLine: '"난 남는 거 할게. 다들 원하는 거 먼저 골라."',
+    clash: 'T는 확률을 보고 F는 사람을 본다. 그런데 좋은 자리는 대체로 먼저 없어진다.',
+    heard: [
+      { side: 'T', said: '"그 번호 통계적으로 별로야."', heard: '"내 선택을 굳이 부정하네."' },
+      { side: 'F', said: '"난 아무거나 괜찮아."', heard: '"그래서 뭘 고르겠다는 거지?"' },
+    ],
+  },
   emotion: {
     tLabel: '해결 모드', tLine: '"그래서 원인이 뭔데? 그거부터 해결하자."',
     fLabel: '공감 모드', fLine: '"헐 어떡해ㅠㅠ 진짜 속상했겠다…"',
@@ -718,4 +783,65 @@ const T_RISK_BANDS = [
 
 function tRiskBand(pct) {
   return T_RISK_BANDS.find((b) => pct >= b.min);
+}
+
+/* ── 번호 고르기 ("1~16 중에 뭐 고를래?") ────────────────────
+ * 이런 질문엔 "고민한다" 같은 소리 말고 실제 숫자를 찍어야 한다.
+ * 앞번호 = 먼저 나서는 성향, 뒷번호 = 정보 쌓고 움직이는 성향,
+ * 가운데 = 튀기 싫은 성향. 16유형을 이 축에 한 줄로 세운다.
+ */
+const PICK_ORDER = [
+  'ESTJ', 'ENTJ', 'ESTP', 'ESFP', 'ENFP', 'ENFJ', 'ESFJ', 'ISFJ',
+  'INFP', 'ISFP', 'INFJ', 'ENTP', 'INTP', 'ISTP', 'ISTJ', 'INTJ',
+];
+
+const PICK_WHY = {
+  ESTJ: '순서대로 하는 게 맞지. {N}번, 내가 먼저 간다.',
+  ENTJ: '{N}번. 맨 앞은 실험대고, 선점 효과는 챙기고. 계산 끝났어.',
+  ESTP: '{N}번. 먼저 가야 재밌지. 기다리는 게 더 고문이야.',
+  ESFP: '{N}번! 앞쪽이 신나잖아. 이유는 그게 다야.',
+  ENFP: '아 몰라 그냥 {N}번이 끌려. 느낌이 왔어 진짜로.',
+  ENFJ: '다들 먼저 골라. 남는 거 할게… 그럼 {N}번.',
+  ESFJ: '{N}번 할게! 겹치는 사람 없지? 다들 확인 좀 🙏',
+  ISFJ: '{N}번. 딱 중간. 앞도 뒤도 부담스러워.',
+  INFP: '{N}번. 그냥 이 숫자가 좋아서. 이유는 없어.',
+  ISFP: '{N}번. 숫자 모양이 마음에 들어서. 진짜 그 이유야.',
+  INFJ: '왠지 {N}번이 맞는 느낌이야. 설명은 못 하겠는데 그냥 알아.',
+  ENTP: '다들 뒷번호 노릴 테니까 그 바로 앞. {N}번. 허를 찌르는 거지.',
+  INTP: '{N}번. 이유 물어보면 세 개쯤 댈 수 있는데, 솔직히 다 갖다 붙인 거야.',
+  ISTP: '{N}번. 앞에서 대충 감 잡히면 그때 움직이면 돼.',
+  ISTJ: '앞은 정보가 없고 맨 뒤는 시간이 없어. {N}번이 최적이야.',
+  INTJ: '{N}번. 앞사람들이 나 대신 데이터를 만들어준다.',
+};
+
+/* "1~16", "16개 중", "몇 번", 오징어게임 등에서 범위를 뽑아낸다 */
+function detectNumberPick(text) {
+  const q = String(text);
+  const wantsPick = /고를|골라|고르|찍어|찍을|뽑|선택|정해|몇\s*번|번호|숫자/.test(q);
+  if (!wantsPick) return null;
+
+  let m = q.match(/(\d{1,3})\s*(?:~|-|–|부터|에서)\s*(\d{1,3})/);
+  if (m) {
+    const lo = Math.min(+m[1], +m[2]);
+    const hi = Math.max(+m[1], +m[2]);
+    if (hi > lo && hi - lo <= 200) return { lo, hi, label: `${lo}~${hi}번` };
+  }
+
+  m = q.match(/(\d{1,3})\s*(?:개|명|장|칸|가지|종류)\s*중/);
+  if (m && +m[1] >= 2 && +m[1] <= 200) return { lo: 1, hi: +m[1], label: `1~${m[1]}번` };
+
+  if (/오징어\s*게임|유리\s*다리|다리\s*건너/.test(q)) return { lo: 1, hi: 16, label: '1~16번' };
+
+  m = q.match(/(\d{1,3})\s*번(?:까지)?\s*중/);
+  if (m && +m[1] >= 2 && +m[1] <= 200) return { lo: 1, hi: +m[1], label: `1~${m[1]}번` };
+
+  return null;
+}
+
+/* 유형 → 실제 번호. PICK_ORDER 위치를 범위에 그대로 투영한다. */
+function pickFor(type, pick) {
+  const i = PICK_ORDER.indexOf(type.code);
+  const pos = i / (PICK_ORDER.length - 1);
+  const num = pick.lo + Math.round(pos * (pick.hi - pick.lo));
+  return { num, why: PICK_WHY[type.code].replace(/\{N\}/g, num), rank: i };
 }

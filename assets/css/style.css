@@ -363,3 +363,24 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
   .heard-arrow { transform: rotate(90deg); text-align: center; }
   .trisk-head { font-size: 15.5px; flex-wrap: wrap; gap: 7px; }
 }
+
+/* 번호 배정표 */
+.picks { display: grid; gap: 8px; }
+.pick-row { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: center;
+  background: #0f1122; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.pick-num {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: grid; place-items: center; font-size: 19px; font-weight: 900; color: #fff;
+  background: linear-gradient(135deg, hsl(var(--h, 250) 80% 64%), hsl(calc(var(--h, 250) + 14) 72% 48%));
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.pick-who { font-size: 15px; }
+.pick-who b { font-weight: 800; }
+.pick-who em { font-style: normal; font-size: 12.5px; color: var(--tx3); margin-left: 6px; }
+.pick-why { font-size: 13.5px; color: var(--tx2); margin-top: 2px; }
+@media (max-width: 560px) {
+  .pick-row { grid-template-columns: 46px 1fr; gap: 11px; padding: 9px 12px; }
+  .pick-num { width: 40px; height: 40px; font-size: 17px; border-radius: 10px; }
+  .pick-who { font-size: 14px; }
+  .pick-who em { display: block; margin-left: 0; }
+}

@@ -1,6 +1,6 @@
 /* Offline cache for the app shell. Bump CACHE to ship an update. */
-const CACHE = "bymbti-v8";
-const V = "8";
+const CACHE = "bymbti-v9";
+const V = "9";
 const ASSETS = [
   "./",
   "./index.html",
