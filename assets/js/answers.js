@@ -117,7 +117,7 @@ function buildSceneAnswer(type, analysis) {
       .replace(/\{OTHER\}/g, decision.other);
     verdict = `${line} ${verdict}`;
   }
-  verdict = `${verdict} ${AUX_TAIL[aux]}`;
+  verdict = `${verdict} ${(scene.tail || AUX_TAIL)[aux]}`;
 
   const kw = type.keywords.slice(0, 2);
   const body =
