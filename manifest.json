@@ -1,6 +1,6 @@
 {
-  "name": "bymbti — 그래서 넌 뭐 할 건데?",
-  "short_name": "bymbti",
+  "name": "byMBTI — 그래서 넌 뭐 할 건데?",
+  "short_name": "byMBTI",
   "description": "네가 안 정하면 16명이 정해준다. 아무 질문이나 던지면 MBTI 16유형이 각자 답하고 각자 자리를 맡습니다.",
   "lang": "ko",
   "start_url": "./index.html",

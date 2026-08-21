@@ -41,10 +41,11 @@ a { color: var(--accent2); }
 
 /* 헤더 */
 header.hero { padding: 52px 0 30px; text-align: center; }
-.logo { font-size: 21px; font-weight: 800; letter-spacing: -.5px; }
+.logo { font-size: 17px; font-weight: 800; letter-spacing: .5px; margin-bottom: 14px; }
 .logo b { background: linear-gradient(100deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.logo em { font-style: normal; letter-spacing: 1px; }
 .headline {
-  margin: 8px 0 14px;
+  margin: 0 0 10px;
   font-size: clamp(36px, 7.2vw, 62px); font-weight: 900; letter-spacing: -2px;
   line-height: 1.12; color: var(--tx);
   text-shadow: 0 6px 34px rgba(124,108,255,.35);
