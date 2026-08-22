@@ -1,12 +1,13 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '16';
+  const APP_VERSION = '17';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const EXAMPLES = [
     '오늘 짜장면 먹을까 짬뽕 먹을까',
+    'AI가 일자리를 증가시킨다 vs 감소시킨다',
     '오징어게임 다리 건너기, 1~16번 중에 몇 번 고를래?',
     '내가 슬퍼서 빵을 샀어',
     '오늘 비 온다는데 우산 챙길까 말까',
@@ -207,6 +208,21 @@
     const top = rows[0];
     const tie = rows.length > 1 && rows[1][1].length === top[1].length;
 
+    /* 선택지 내용에 방향이 있으면 어떤 축으로 갈렸는지 밝힌다 */
+    const ax = decidingAxis(a.options);
+    const axisNote = ax ? (() => {
+      const pa = profileOption(a.options[0]);
+      const pb = profileOption(a.options[1]);
+      const first = pa[ax.axis] > pb[ax.axis] ? 'pos' : 'neg';
+      const second = first === 'pos' ? 'neg' : 'pos';
+      return `
+      <div class="axis-note">
+        🧭 이 선택지는 <b>${esc(OPTION_AXES[ax.axis].label)}</b> 축으로 갈립니다.<br>
+        <span>“${esc(a.options[0])}” 쪽 — ${esc(AXIS_REASON[ax.axis][first])}</span>
+        <span>“${esc(a.options[1])}” 쪽 — ${esc(AXIS_REASON[ax.axis][second])}</span>
+      </div>`;
+    })() : '';
+
     return `
     <h2 class="section-title">🗳️ 16유형 투표 결과 <small>그래서 다수는 이쪽입니다</small></h2>
     <section class="panel">
@@ -215,6 +231,7 @@
     ? `😐 <b>${esc(top[0])}</b> 와(과) <b>${esc(rows[1][0])}</b> 동률. 이럴 땐 그냥 가위바위보 하세요.`
     : `🏆 <b>${esc(top[0])}</b> — ${top[1].length}표로 1위. 근데 소수 의견도 한 번 보세요.`}
       </div>
+      ${axisNote}
       <div class="votes">
         ${rows.map(([label, list]) => `
           <div class="vote">

@@ -61,10 +61,18 @@ function extractOptions(text) {
 }
 
 /* ── 양자택일 상황에서 각 유형이 실제로 뭘 고르는지 ───────────── */
+/* FNV-1a + 최종 믹싱. 단순 h*31 은 상위 자릿수 한 글자(코드의 S/N)가
+   홀짝을 결정해버려서, 내용이 중립인 선택지가 매번 S vs N 으로만 갈렸다. */
 function hashCode(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i += 1) h = ((h * 31) + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 15; h = Math.imul(h, 2246822507);
+  h ^= h >>> 13; h = Math.imul(h, 3266489909);
+  h ^= h >>> 16;
+  return Math.abs(h | 0);
 }
 
 const THIRD_WAY = '둘 다 / 제3의 길';
@@ -72,11 +80,21 @@ const THIRD_WAY = '둘 다 / 제3의 길';
 function decideFor(type, options) {
   if (!options) return null;
   const dom = type.stack[0];
+
+  /* 선택지 내용에 방향이 있으면(증가/감소, 새로움/기존, 사람/효율 …)
+     성향으로 편을 가른다. 이때는 아무도 "둘 다"로 새지 않는다. */
+  const lp = leanPick(type, options);
+  if (lp) {
+    const pick = options[lp.index];
+    const other = options[1 - lp.index];
+    return { pick, other, vote: pick, style: 'lean', axis: lp.axis };
+  }
+
+  /* 내용이 중립이면(짜장면 vs 짬뽕) 성향이 아니라 스타일로 갈린다 */
   const i = hashCode(type.code + '|' + options.join('|')) % 2;
   const pick = options[i];
   const other = options[1 - i];
 
-  /* Ne 주기능은 어떻게든 제3의 선택지를 만들어낸다 */
   if (dom === 'Ne') return { pick, other, vote: THIRD_WAY, style: 'third' };
   if (dom === 'Fe') return { pick, other, vote: pick, style: 'follow' };
   if (dom === 'Fi') return { pick, other, vote: pick, style: 'quiet' };
@@ -1121,3 +1139,133 @@ const IE_TALK = {
   },
 };
 
+
+/* ── 선택지 내용 분석 ────────────────────────────────────────
+ * "짜장면 vs 짬뽕"처럼 내용이 중립이면 성향으로 갈릴 게 없다.
+ * 하지만 "일자리를 증가시킨다 vs 감소시킨다" 같은 명제는 내용 자체에 방향이 있다.
+ * 선택지 문구를 네 축으로 읽고, 유형의 인지기능이 어느 쪽으로 기우는지 계산한다.
+ */
+const OPTION_AXES = {
+  optimism: {
+    label: '낙관 ↔ 비관',
+    pos: ['증가', '늘어', '늘린', '늘릴', '성장', '발전', '기회', '개선', '향상', '확대', '희망',
+      '좋아', '이득', '유리', '긍정', '찬성', '가능', '해결', '나아', '살린'],
+    neg: ['감소', '줄어', '줄인', '줄일', '위기', '위험', '악화', '축소', '파괴', '실패', '사라',
+      '우려', '손해', '불리', '부정', '반대', '없어', '문제', '망가', '뺏'],
+  },
+  novelty: {
+    label: '새로움 ↔ 익숙함',
+    pos: ['새로운', '새롭', '혁신', '변화', '도전', '미래', '전환', '신규', '처음', '바꾸', '실험'],
+    neg: ['기존', '전통', '유지', '안정', '현행', '지금까지', '익숙', '원래', '그대로', '보존', '지킨'],
+  },
+  people: {
+    label: '사람 ↔ 시스템',
+    pos: ['사람', '일자리', '고용', '노동', '학생', '시민', '복지', '감정', '관계', '삶', '인간',
+      '공동체', '배려', '마음', '함께'],
+    neg: ['효율', '비용', '생산성', '수익', '데이터', '시스템', '성능', '자동화', '기계', '수치',
+      '경쟁력', '최적'],
+  },
+  action: {
+    label: '실행 ↔ 유보',
+    pos: ['한다', '하자', '하기', '지금', '즉시', '도입', '시작', '추진', '실행', '간다', '산다', '찬성'],
+    neg: ['안 ', '말기', '말자', '보류', '나중', '중단', '기다', '반대', '안하', '않는'],
+  },
+};
+
+/* 선택지 하나를 네 축의 값(-1~1)으로 읽는다 */
+function profileOption(text) {
+  const q = String(text);
+  const out = {};
+  Object.entries(OPTION_AXES).forEach(([axis, def]) => {
+    const p = def.pos.filter((w) => q.includes(w)).length;
+    const n = def.neg.filter((w) => q.includes(w)).length;
+    out[axis] = p || n ? (p - n) / Math.max(1, p + n) : 0;
+  });
+  return out;
+}
+
+/* 인지기능이 각 축에서 어느 쪽으로 기우는지 */
+const FUNCTION_LEAN = {
+  Ne: { optimism: .90, novelty: 1.00, people: .10, action: .30 },
+  Ni: { optimism: .30, novelty: .50, people: .10, action: .20 },
+  Se: { optimism: -.20, novelty: .30, people: .00, action: 1.00 },
+  Si: { optimism: -.80, novelty: -1.00, people: .10, action: -.10 },
+  Te: { optimism: -.10, novelty: .10, people: -.90, action: 1.00 },
+  Ti: { optimism: -.30, novelty: .25, people: -.85, action: -.25 },
+  Fe: { optimism: .30, novelty: .00, people: 1.00, action: .20 },
+  Fi: { optimism: .20, novelty: .25, people: .95, action: -.15 },
+};
+
+const AXIS_BONUS = {
+  E: { action: .30, optimism: .15 }, I: { action: -.30, optimism: -.10 },
+  N: { novelty: .30, optimism: .25 }, S: { novelty: -.30, optimism: -.25 },
+  T: { people: -.25 }, F: { people: .25 },
+  J: { action: .20 }, P: { action: -.10, novelty: .20 },
+};
+
+/* 내용으로 갈렸을 때 쓰는 대사 — 이때는 "둘 다"로 새지 않고 한쪽을 편든다 */
+const LEAN_LINE = {
+  Ni: '{PICK}. 길게 보면 결국 그쪽으로 간다고 봐.',
+  Ne: '{PICK}. {OTHER} 쪽 논리도 알겠는데, 그래도 나는 이쪽이야.',
+  Si: '{PICK}. 지금까지 실제로 벌어진 걸 보면 그래.',
+  Se: '{PICK}. 지금 눈앞에 보이는 게 그렇잖아.',
+  Ti: '{PICK}. 전제부터 따져보면 이쪽이 맞아.',
+  Te: '{PICK}. 근거 대라면 세 개는 댈 수 있어.',
+  Fi: '{PICK}. 이건 양보 못 해. 내 기준으로는 명확해.',
+  Fe: '{PICK}. 사람들한테 어떤 영향이 가는지를 보면 그쪽이야.',
+};
+
+/* 축별로 왜 그쪽을 고르는지 (투표 결과 설명용) */
+const AXIS_REASON = {
+  optimism: { pos: '가능성과 새로 생길 것을 본다', neg: '지금 실제로 벌어지는 것을 본다' },
+  novelty: { pos: '새로운 쪽에 걸어본다', neg: '검증된 쪽이 안전하다고 본다' },
+  people: { pos: '사람에게 가는 영향에 무게를 둔다', neg: '숫자와 효율에 무게를 둔다' },
+  action: { pos: '일단 하는 쪽이다', neg: '한 박자 보류하는 쪽이다' },
+};
+
+/* 유형 → 축별 성향 (인지기능 스택 가중 + 지표 보정) */
+function leanOf(type) {
+  const lean = { optimism: 0, novelty: 0, people: 0, action: 0 };
+  type.stack.forEach((fn, i) => {
+    const w = STACK_WEIGHT[i];
+    Object.entries(FUNCTION_LEAN[fn]).forEach(([axis, v]) => { lean[axis] += v * w; });
+  });
+  type.code.split('').forEach((ch) => {
+    Object.entries(AXIS_BONUS[ch] || {}).forEach(([axis, v]) => { lean[axis] += v; });
+  });
+  return lean;
+}
+
+/* 두 선택지 중 이 유형이 어느 쪽으로 기우는지.
+   내용에 방향이 없으면(짜장면 vs 짬뽕) null 을 돌려주고 기존 해시 배정으로 넘긴다. */
+function leanPick(type, options) {
+  const pa = profileOption(options[0]);
+  const pb = profileOption(options[1]);
+  const lean = leanOf(type);
+
+  let diffSum = 0;
+  let best = { axis: null, gap: 0 };
+  Object.keys(OPTION_AXES).forEach((axis) => {
+    const d = pa[axis] - pb[axis];
+    if (!d) return;
+    diffSum += lean[axis] * d;
+    const gap = Math.abs(lean[axis] * d);
+    if (gap > best.gap) best = { axis, gap, dir: lean[axis] * d };
+  });
+
+  if (Math.abs(diffSum) < 0.12) return null;      // 성향 차이가 미미하면 판단 보류
+  return { index: diffSum > 0 ? 0 : 1, axis: best.axis, strength: Math.abs(diffSum) };
+}
+
+/* 이 선택지 쌍이 내용으로 갈리는 축이 있는지 (있으면 그 축 이름) */
+function decidingAxis(options) {
+  if (!options) return null;
+  const pa = profileOption(options[0]);
+  const pb = profileOption(options[1]);
+  let best = null;
+  Object.keys(OPTION_AXES).forEach((axis) => {
+    const d = Math.abs(pa[axis] - pb[axis]);
+    if (d > 0 && (!best || d > best.d)) best = { axis, d, label: OPTION_AXES[axis].label };
+  });
+  return best;
+}

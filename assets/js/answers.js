@@ -113,7 +113,9 @@ function buildSceneAnswer(type, analysis) {
   /* 이 유형이 실제로 내놓는 답 */
   let verdict = scene.verdict[dom];
   if (decision) {
-    const line = CHOICE_LINE[dom]
+    /* 내용으로 갈린 선택이면 편을 확실히 드는 대사, 중립이면 성향 스타일 대사 */
+    const tpl = decision.style === 'lean' ? LEAN_LINE[dom] : CHOICE_LINE[dom];
+    const line = tpl
       .replace(/\{PICK\}/g, decision.pick)
       .replace(/\{OTHER\}/g, decision.other);
     verdict = `${line} ${verdict}`;

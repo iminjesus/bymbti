@@ -407,3 +407,8 @@ details.more[open] summary { margin-bottom: 4px; }
 .duel-side.e { border-top: 3px solid #fbbf24; }
 .heard-said.i .who, .heard-got.i .who { color: #a78bfa; }
 .heard-said.e .who, .heard-got.e .who { color: #fbbf24; }
+
+/* 선택지가 어떤 축으로 갈리는지 */
+.axis-note { background: #0f1122; border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; font-size: 14px; color: var(--tx2); }
+.axis-note b { color: var(--accent2); }
+.axis-note span { display: block; font-size: 13px; color: var(--tx3); margin-top: 5px; }
