@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '15';
+  const APP_VERSION = '16';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -285,21 +285,10 @@
   function tfSection(a) {
     const key = a.isAssignment ? 'assignment' : a.scene.id;
     const tf = TF_TALK[key] || TF_TALK.daily;
-    const risk = tRiskOf(a.weights);
-    const band = tRiskBand(risk);
+
     return `
-    <h2 class="section-title">⚔️ T vs F <small>같은 상황, 정반대 대답 — MBTI 최대 떡밥</small></h2>
+    <h2 class="section-title">⚔️ T vs F</h2>
     <section class="panel">
-
-      <div class="trisk">
-        <div class="trisk-head">
-          <b>${band.emoji} T발지수 ${risk}%</b>
-          <span class="trisk-band">${esc(band.label)}</span>
-        </div>
-        <div class="trisk-bar"><i style="width:${risk}%"></i></div>
-        <div class="trisk-text">${esc(band.text)}</div>
-      </div>
-
       <div class="duel">
         <div class="duel-side t">
           <div class="duel-head">🧊 T 진영 <em>${esc(tf.tLabel)}</em></div>
@@ -336,22 +325,10 @@
   function ieSection(a) {
     const key = a.isAssignment ? 'assignment' : a.scene.id;
     const ie = IE_TALK[key] || IE_TALK.daily;
-    const drain = ieDrainOf(a.weights);
-    const band = ieBand(drain);
 
     return `
-    <h2 class="section-title">🔋 I vs E <small>같은 자리, 정반대 체력 — 약속 취소에 한쪽은 웃습니다</small></h2>
+    <h2 class="section-title">🔋 I vs E</h2>
     <section class="panel">
-
-      <div class="trisk ie">
-        <div class="trisk-head">
-          <b>${band.emoji} I 배터리 소모 ${drain}%</b>
-          <span class="trisk-band">${esc(band.label)}</span>
-        </div>
-        <div class="trisk-bar"><i style="width:${drain}%"></i></div>
-        <div class="trisk-text">${esc(band.text)}</div>
-      </div>
-
       <div class="duel">
         <div class="duel-side i">
           <div class="duel-head">🌙 I 진영 <em>${esc(ie.iLabel)}</em></div>
@@ -613,9 +590,7 @@
 
     const tfKey = a.isAssignment ? 'assignment' : a.scene.id;
     const tf = TF_TALK[tfKey] || TF_TALK.daily;
-    const risk = tRiskOf(a.weights);
     lines.push('■ T vs F');
-    lines.push(`- T발지수 ${risk}% (${tRiskBand(risk).label})`);
     lines.push(`- T 진영 (${tf.tLabel}): ${tf.tLine}`);
     lines.push(`- F 진영 (${tf.fLabel}): ${tf.fLine}`);
     lines.push(`- 충돌 지점: ${tf.clash}`);
@@ -623,9 +598,7 @@
     lines.push('');
 
     const ie = IE_TALK[tfKey] || IE_TALK.daily;
-    const drain = ieDrainOf(a.weights);
     lines.push('■ I vs E');
-    lines.push(`- I 배터리 소모 ${drain}% (${ieBand(drain).label})`);
     lines.push(`- I 진영 (${ie.iLabel}): ${ie.iLine}`);
     lines.push(`- E 진영 (${ie.eLabel}): ${ie.eLine}`);
     lines.push(`- 충돌 지점: ${ie.clash}`);

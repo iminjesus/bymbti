@@ -764,26 +764,6 @@ const TF_TALK = {
   },
 };
 
-/* T발지수: 이 상황이 얼마나 "공감"을 요구하는지를 역량 가중치에서 뽑는다.
-   팀 조율 요구가 클수록, 논리 분석 요구가 작을수록 T의 팩트가 위험해진다. */
-function tRiskOf(weights) {
-  const h = weights.harmony || 1;
-  const a = weights.analysis || 1;
-  const ratio = h / (h + a);                       // 대략 0.35 ~ 0.62
-  const pct = Math.round(((ratio - 0.34) / 0.30) * 100);
-  return Math.max(4, Math.min(98, pct));
-}
-
-const T_RISK_BANDS = [
-  { min: 80, emoji: '🚨', label: '위험', text: '여기서 팩트 꺼내면 손절각입니다. 위로부터 하세요.' },
-  { min: 60, emoji: '⚠️', label: '주의', text: '해결책은 위로 다음에. 순서만 바꿔도 살아남습니다.' },
-  { min: 40, emoji: '🙂', label: '보통', text: 'T도 F도 무난한 구간. 그냥 하고 싶은 말 하세요.' },
-  { min: 0, emoji: '✅', label: '안전', text: '여기선 T가 정답에 가깝습니다. 마음껏 따지세요.' },
-];
-
-function tRiskBand(pct) {
-  return T_RISK_BANDS.find((b) => pct >= b.min);
-}
 
 /* ── 번호 고르기 ("1~16 중에 뭐 고를래?") ────────────────────
  * 이런 질문엔 "고민한다" 같은 소리 말고 실제 숫자를 찍어야 한다.
@@ -1141,23 +1121,3 @@ const IE_TALK = {
   },
 };
 
-/* I 배터리 소모 지수: 이 상황이 사람을 얼마나 상대하게 만드는지.
-   팀조율·전달력·설득 요구가 클수록 I 는 방전되고, 혼자 하는 일이 많을수록 버틴다. */
-function ieDrainOf(weights) {
-  const social = (weights.harmony || 1) + (weights.presentation || 1) + (weights.persuasion || 1);
-  const solo = (weights.research || 1) + (weights.analysis || 1) + (weights.writing || 1);
-  const ratio = social / (social + solo);
-  const pct = Math.round(((ratio - 0.47) / 0.10) * 100);
-  return Math.max(4, Math.min(98, pct));
-}
-
-const IE_BANDS = [
-  { min: 80, emoji: '🪫', label: '방전', text: 'I는 이거 끝나고 며칠 충전해야 합니다. E는 신났습니다.' },
-  { min: 60, emoji: '🔋', label: '주의', text: 'I는 중간에 화장실 다녀오는 척하고 숨 좀 돌리세요.' },
-  { min: 40, emoji: '🔌', label: '보통', text: '버틸 만합니다. I도 E도 크게 손해 보지 않는 구간.' },
-  { min: 0, emoji: '⚡', label: '안전', text: 'I가 제일 편한 구간입니다. E는 좀 심심할 수 있습니다.' },
-];
-
-function ieBand(pct) {
-  return IE_BANDS.find((b) => pct >= b.min);
-}
