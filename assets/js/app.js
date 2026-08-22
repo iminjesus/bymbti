@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '14';
+  const APP_VERSION = '15';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -156,6 +156,7 @@
     if (a.pick) html += pickSection(a);
     else if (!a.options) html += commitSection(a);   // 선택지가 있으면 투표 결과가 곧 답
     html += tfSection(a);
+    html += ieSection(a);
     if (a.isAssignment) html += roadmapSection(a);
     html += state.mode === 'team' ? teamSection(a) : '';
     html += typesSection(a);
@@ -324,6 +325,58 @@
               <div class="heard-arrow">→</div>
               <div class="heard-got ${h.side === 'T' ? 'f' : 't'}">
                 <span class="who">${h.side === 'T' ? 'F' : 'T'}가 들은 말</span>${esc(h.heard)}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </section>`;
+  }
+
+  /* ── 1.8 I vs E ────────────────────────────────────────── */
+  function ieSection(a) {
+    const key = a.isAssignment ? 'assignment' : a.scene.id;
+    const ie = IE_TALK[key] || IE_TALK.daily;
+    const drain = ieDrainOf(a.weights);
+    const band = ieBand(drain);
+
+    return `
+    <h2 class="section-title">🔋 I vs E <small>같은 자리, 정반대 체력 — 약속 취소에 한쪽은 웃습니다</small></h2>
+    <section class="panel">
+
+      <div class="trisk ie">
+        <div class="trisk-head">
+          <b>${band.emoji} I 배터리 소모 ${drain}%</b>
+          <span class="trisk-band">${esc(band.label)}</span>
+        </div>
+        <div class="trisk-bar"><i style="width:${drain}%"></i></div>
+        <div class="trisk-text">${esc(band.text)}</div>
+      </div>
+
+      <div class="duel">
+        <div class="duel-side i">
+          <div class="duel-head">🌙 I 진영 <em>${esc(ie.iLabel)}</em></div>
+          <div class="duel-line">${esc(ie.iLine)}</div>
+        </div>
+        <div class="duel-vs">VS</div>
+        <div class="duel-side e">
+          <div class="duel-head">☀️ E 진영 <em>${esc(ie.eLabel)}</em></div>
+          <div class="duel-line">${esc(ie.eLine)}</div>
+        </div>
+      </div>
+
+      <div class="clash">⚡ <b>충돌 지점</b> — ${esc(ie.clash)}</div>
+
+      <div class="block" style="margin-top:16px">
+        <div class="h">🔁 같은 말인데 이렇게 들린다</div>
+        <div class="heard">
+          ${ie.heard.map((h) => `
+            <div class="heard-row">
+              <div class="heard-said ${h.side === 'I' ? 'i' : 'e'}">
+                <span class="who">${h.side}가 한 말</span>${esc(h.said)}
+              </div>
+              <div class="heard-arrow">→</div>
+              <div class="heard-got ${h.side === 'I' ? 'e' : 'i'}">
+                <span class="who">${h.side === 'I' ? 'E' : 'I'}가 들은 말</span>${esc(h.heard)}
               </div>
             </div>`).join('')}
         </div>
@@ -567,6 +620,16 @@
     lines.push(`- F 진영 (${tf.fLabel}): ${tf.fLine}`);
     lines.push(`- 충돌 지점: ${tf.clash}`);
     tf.heard.forEach((h) => lines.push(`- ${h.side}가 한 말 ${h.said} → ${h.side === 'T' ? 'F' : 'T'}가 들은 말 ${h.heard}`));
+    lines.push('');
+
+    const ie = IE_TALK[tfKey] || IE_TALK.daily;
+    const drain = ieDrainOf(a.weights);
+    lines.push('■ I vs E');
+    lines.push(`- I 배터리 소모 ${drain}% (${ieBand(drain).label})`);
+    lines.push(`- I 진영 (${ie.iLabel}): ${ie.iLine}`);
+    lines.push(`- E 진영 (${ie.eLabel}): ${ie.eLine}`);
+    lines.push(`- 충돌 지점: ${ie.clash}`);
+    ie.heard.forEach((h) => lines.push(`- ${h.side}가 한 말 ${h.said} → ${h.side === 'I' ? 'E' : 'I'}가 들은 말 ${h.heard}`));
     lines.push('');
 
     if (state.mode === 'team' && state.members.length) {

@@ -408,3 +408,10 @@ details.more summary::-webkit-details-marker { display: none; }
 details.more summary:hover { color: var(--tx2); }
 details.more[open] summary { margin-bottom: 4px; }
 .trap { font-size: 12.5px; }
+
+/* I vs E — T/F 와 같은 뼈대에 색만 다르게 */
+.duel-side.i { border-top: 3px solid #a78bfa; }
+.duel-side.e { border-top: 3px solid #fbbf24; }
+.trisk.ie .trisk-bar i { background: linear-gradient(90deg, #4ade80, #a78bfa); }
+.heard-said.i .who, .heard-got.i .who { color: #a78bfa; }
+.heard-said.e .who, .heard-got.e .who { color: #fbbf24; }

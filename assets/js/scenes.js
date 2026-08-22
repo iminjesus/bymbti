@@ -1043,3 +1043,121 @@ function commitFor(type, sceneId) {
   const parts = raw.split(' — ');
   return { answer: parts[0], why: parts[1] || '' };
 }
+
+/* ── I vs E 전용 데이터 ──────────────────────────────────────
+ * T/F 다음으로 밈이 많이 나오는 축. 약속 취소됐을 때의 반응,
+ * "카톡으로 하면 안 돼요?", 배터리 방전 같은 것들이 전부 여기서 나온다.
+ */
+const IE_TALK = {
+  emotion: {
+    iLabel: '혼자 삭이기', iLine: '"일단 혼자 좀 있을게. 정리되면 말할게."',
+    eLabel: '말하면서 풀기', eLine: '"지금 통화 돼? 아니면 나갈까? 만나서 얘기하자."',
+    clash: 'E는 말해야 풀리고 I는 말하면 더 지친다. 위로한다고 부른 자리가 I에겐 2차 피해다.',
+    heard: [
+      { side: 'I', said: '"혼자 있고 싶어."', heard: '"나를 밀어내는구나."' },
+      { side: 'E', said: '"지금 나올래? 내가 갈게."', heard: '"내 회복 시간을 가져가겠다는 소리."' },
+    ],
+  },
+  meal: {
+    iLabel: '조용한 자리', iLine: '"룸 있는 데로 가자. 아니면 그냥 배달."',
+    eLabel: '사람 많은 데', eLine: '"웨이팅 있어도 그 집 가자. 분위기가 다르잖아."',
+    clash: 'I는 메뉴보다 자리를 보고 E는 자리보다 사람을 본다. 같은 식당인데 기준이 다르다.',
+    heard: [
+      { side: 'I', said: '"배달 시키면 안 돼?"', heard: '"나랑 나가기 싫구나."' },
+      { side: 'E', said: '"다 같이 가자!"', heard: '"몇 명인지부터 말해줘."' },
+    ],
+  },
+  choice: {
+    iLabel: '혼자 정리하고 말하기', iLine: '"생각 좀 해보고 말해줄게."',
+    eLabel: '말하면서 정리하기', eLine: '"일단 말해보면서 정리하자. 들어봐."',
+    clash: 'I는 다 정리한 뒤에 말하고 E는 말하면서 정리한다. 그래서 I는 의견이 없어 보이고 E는 결론이 자주 바뀌어 보인다.',
+    heard: [
+      { side: 'I', said: '"생각 좀 해볼게."', heard: '"관심 없다는 뜻이네."' },
+      { side: 'E', said: '"그러니까 이게 어떠냐면…"', heard: '"결론부터 말해줄래?"' },
+    ],
+  },
+  weather: {
+    iLabel: '안 나갈 명분', iLine: '"비 온대? 그럼 오늘 집에 있어도 되는 거지?"',
+    eLabel: '그래도 나감', eLine: '"비 오면 어때. 오히려 분위기 좋잖아."',
+    clash: 'I에게 궂은 날씨는 선물이고 E에게는 극복 대상이다.',
+    heard: [
+      { side: 'I', said: '"날씨가 좀 그래서…"', heard: '"핑계 대는 중."' },
+      { side: 'E', said: '"그래도 나오자!"', heard: '"오늘 체력 예산 초과인데."' },
+    ],
+  },
+  plan: {
+    iLabel: '소수 정예', iLine: '"몇 명 와? 아는 사람만 있으면 갈게."',
+    eLabel: '다 부르자', eLine: '"그 친구도 부를까? 아 그 사람도 부르자!"',
+    clash: 'E는 인원이 늘수록 신나고 I는 인원이 늘수록 갈 이유가 줄어든다.',
+    heard: [
+      { side: 'I', said: '"몇 명 와?"', heard: '"안 오려고 재는 중이구나."' },
+      { side: 'E', said: '"많을수록 재밌지!"', heard: '"모르는 사람이 몇 명이라고?"' },
+    ],
+  },
+  love: {
+    iLabel: '글로 정리해서', iLine: '"이건 정리해서 톡으로 보낼게."',
+    eLabel: '만나서 직접', eLine: '"만나서 얘기해. 얼굴 보면 다 풀려."',
+    clash: 'I는 정리된 문장을 보내고 E는 정리 안 된 마음을 들고 나간다. 둘 다 진심인데 형식이 다르다.',
+    heard: [
+      { side: 'I', said: '"카톡으로 얘기하자."', heard: '"회피하는 거잖아."' },
+      { side: 'E', said: '"지금 만나서 얘기해."', heard: '"마음의 준비 시간이 필요한데."' },
+    ],
+  },
+  money: {
+    iLabel: '온라인으로', iLine: '"매장 가면 직원이 말 걸잖아. 그냥 온라인."',
+    eLabel: '매장 가서', eLine: '"가서 직접 보고, 물어보고, 깎으면 되지."',
+    clash: 'I에겐 응대받는 것 자체가 비용이고 E에겐 흥정이 즐거움이다.',
+    heard: [
+      { side: 'I', said: '"그냥 온라인으로 살래."', heard: '"발품 팔면 더 싼데 왜."' },
+      { side: 'E', said: '"가서 물어보자!"', heard: '"말 안 걸고 사고 싶어."' },
+    ],
+  },
+  daily: {
+    iLabel: '집에서 충전', iLine: '"아무도 안 만나는 게 오늘의 계획이야."',
+    eLabel: '나가서 충전', eLine: '"심심하면 나가야지. 누구 나오라고 할까?"',
+    clash: '같은 "쉬자"인데 I는 혼자 있는 것이고 E는 같이 있는 것이다. 약속 취소 문자에 한쪽은 웃고 한쪽은 운다.',
+    heard: [
+      { side: 'I', said: '"오늘 약속 취소됐어." (신남)', heard: '"저걸 왜 좋아하지?"' },
+      { side: 'E', said: '"심심한데 나와."', heard: '"지금 딱 좋은데 왜 부르지."' },
+    ],
+  },
+  pick: {
+    iLabel: '남는 거 조용히', iLine: '"다들 고르고 남은 거 할게."',
+    eLabel: '먼저 찜하기', eLine: '"나 이거! 먼저 찜!"',
+    clash: 'E가 먼저 부르는 동안 I는 아직 눈치를 보고 있다. 그래서 좋은 자리는 대체로 E가 가져간다.',
+    heard: [
+      { side: 'I', said: '"아무거나 상관없어."', heard: '"의견이 없구나."' },
+      { side: 'E', said: '"나 먼저 고를게!"', heard: '"그럼 나는 뭘 골라야 하지."' },
+    ],
+  },
+  assignment: {
+    iLabel: '각자 하고 합치기', iLine: '"역할 나눠서 각자 하고 온라인으로 합치자."',
+    eLabel: '모여서 하기', eLine: '"카페에서 다 같이 모여야 진도가 나가지."',
+    clash: 'I는 모이는 시간이 낭비고 E는 안 모이면 진도가 안 나간다. 조별과제 갈등의 절반은 여기서 시작된다.',
+    heard: [
+      { side: 'I', said: '"각자 하고 공유하면 되잖아."', heard: '"협업할 생각이 없네."' },
+      { side: 'E', said: '"이번 주에 한 번 모이자."', heard: '"모여서 4시간 중 3시간은 잡담이잖아."' },
+    ],
+  },
+};
+
+/* I 배터리 소모 지수: 이 상황이 사람을 얼마나 상대하게 만드는지.
+   팀조율·전달력·설득 요구가 클수록 I 는 방전되고, 혼자 하는 일이 많을수록 버틴다. */
+function ieDrainOf(weights) {
+  const social = (weights.harmony || 1) + (weights.presentation || 1) + (weights.persuasion || 1);
+  const solo = (weights.research || 1) + (weights.analysis || 1) + (weights.writing || 1);
+  const ratio = social / (social + solo);
+  const pct = Math.round(((ratio - 0.47) / 0.10) * 100);
+  return Math.max(4, Math.min(98, pct));
+}
+
+const IE_BANDS = [
+  { min: 80, emoji: '🪫', label: '방전', text: 'I는 이거 끝나고 며칠 충전해야 합니다. E는 신났습니다.' },
+  { min: 60, emoji: '🔋', label: '주의', text: 'I는 중간에 화장실 다녀오는 척하고 숨 좀 돌리세요.' },
+  { min: 40, emoji: '🔌', label: '보통', text: '버틸 만합니다. I도 E도 크게 손해 보지 않는 구간.' },
+  { min: 0, emoji: '⚡', label: '안전', text: 'I가 제일 편한 구간입니다. E는 좀 심심할 수 있습니다.' },
+];
+
+function ieBand(pct) {
+  return IE_BANDS.find((b) => pct >= b.min);
+}
