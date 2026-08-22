@@ -113,21 +113,24 @@ function buildSceneAnswer(type, analysis) {
   /* 이 유형이 실제로 내놓는 답 */
   let verdict = scene.verdict[dom];
 
+  const V = type.code;   // 변형 선택 키 — 유형마다 다른 조합이 걸리게
+
   if (decision && decision.style === 'lean') {
     /* 주제에 방향이 있으면 상황 공통 문구 대신 그 주제에 대한 실제 논거를 댄다 */
-    const line = LEAN_LINE[dom]
+    const line = pickVariant(LEAN_LINE[dom], `${V}lean`)
       .replace(/\{PICK\}/g, decision.pick)
       .replace(/\{OTHER\}/g, decision.other);
-    const arg = AXIS_VERDICT[decision.axis][decision.side][FUNC_GROUP[dom]];
+    const arg = pickVariant(AXIS_VERDICT[decision.axis][decision.side][FUNC_GROUP[dom]], `${V}arg`);
     verdict = `${line} ${arg}`;
   } else if (decision) {
-    const line = CHOICE_LINE[dom]
+    const line = pickVariant(CHOICE_LINE[dom], `${V}choice`)
       .replace(/\{PICK\}/g, decision.pick)
       .replace(/\{OTHER\}/g, decision.other);
     verdict = `${line} ${verdict}`;
   }
 
-  verdict = `${verdict} ${(scene.tail || AUX_TAIL)[aux]}`;
+  const opener = pickVariant(OPENERS, `${V}open`);
+  verdict = `${opener}${verdict} ${pickVariant((scene.tail || AUX_TAIL)[aux], `${V}tail`)}`;
 
   const kw = type.keywords.slice(0, 2);
   const body =
@@ -181,7 +184,7 @@ function memeFor(type, analysis) {
 function tagsFor(type, analysis) {
   const pool = type.memeTags;
   const key = analysis.isAssignment ? 'assignment' : analysis.scene.id;
-  const start = hashCode(type.code + '|' + key) % pool.length;
+  const start = hashCode(`${type.code}|${key}|${VARIANT_SEED}`) % pool.length;
   return [0, 1, 2].map((i) => pool[(start + i) % pool.length]);
 }
 

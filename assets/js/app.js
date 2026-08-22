@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '18';
+  const APP_VERSION = '19';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -144,6 +144,7 @@
       $('#result').innerHTML = '<div class="panel empty">질문을 먼저 입력해 주세요. 위 예시를 눌러도 됩니다. 👆</div>';
       return;
     }
+    setVariantSeed(Math.floor(Math.random() * 1e9));
     state.analysis = analyzeQuestion(q);
     state.aiCache = {};
     render();
@@ -452,6 +453,7 @@
       </div>
       <div class="row" style="margin-bottom:12px">
         ${LLM.hasKey() ? '<button class="ghost" id="aiAll">✨ 보이는 유형 전부 AI로 다시 쓰기</button>' : ''}
+        <button class="ghost" id="reroll">🎲 다시 뽑기</button>
         <button class="ghost" id="copyAll">📋 결과 텍스트 복사</button>
         <button class="ghost" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
       </div>
@@ -531,6 +533,12 @@
       state.filter = b.dataset.f;
       render();
     }));
+
+    const rerollBtn = $('#reroll');
+    if (rerollBtn) rerollBtn.addEventListener('click', () => {
+      setVariantSeed(Math.floor(Math.random() * 1e9));
+      render();
+    });
 
     const copyBtn = $('#copyAll');
     if (copyBtn) copyBtn.addEventListener('click', copyAll);
