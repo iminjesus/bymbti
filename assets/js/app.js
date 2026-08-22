@@ -1,6 +1,6 @@
 /* bymbti — UI */
 (() => {
-  const APP_VERSION = '13';
+  const APP_VERSION = '14';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -427,9 +427,18 @@
         <span class="grp">${t.groupInfo.emoji} ${esc(t.groupInfo.label)}</span>
       </div>
 
-      <div class="meme">${esc(c.meme)}
+      <div class="block">
+        <div class="h">💬 ${t.code}의 대답</div>
+        <div class="say">
+          <div class="say-meme">${esc(c.meme)}</div>
+          <div class="say-main">${esc(c.answer.verdict || c.answer.quote)}</div>
+        </div>
         <div class="memetags">${c.tags.map((m) => `<span>${esc(m)}</span>`).join('')}</div>
+        ${c.answer.bullets.length ? `<ul>${c.answer.bullets.map((b) => `<li><b>${esc(b.label)}</b> — ${esc(b.text)}</li>`).join('')}</ul>` : ''}
       </div>
+
+      <div class="why-line">🧠 ${esc(c.answer.why)}</div>
+      <div class="trap">⚠️ ${esc(t.caution)}</div>
 
       <div class="roleline">
         <div class="lab">${w.roleQ}</div>
@@ -437,26 +446,6 @@
         <div class="sub">${esc(c.primary.role.duty)}</div>
         <div class="sub" style="margin-top:6px;color:var(--tx3)">서브 — ${c.secondary.role.emoji} ${esc(c.secondary.role.name)} · 안 맞는 ${w.role} — ${esc(c.avoid.role.name)}</div>
       </div>
-
-      ${c.answer.verdict ? `
-      <div class="block">
-        <div class="h">💬 ${t.code}의 대답</div>
-        <div class="answer-big">${esc(c.answer.verdict)}</div>
-      </div>` : ''}
-
-      <div class="block">
-        <div class="h">${c.answer.verdict ? '🧠 왜 그렇게 답하냐면' : '💬 예상 정답'}</div>
-        <div class="p">${esc(c.answer.body)}</div>
-        ${c.answer.bullets.length ? `<ul>${c.answer.bullets.map((b) => `<li><b>${esc(b.label)}</b> — ${esc(b.text)}</li>`).join('')}</ul>` : ''}
-      </div>
-
-      ${c.answer.verdict ? '' : `
-      <div class="block">
-        <div class="h">🎙️ 회의에서 할 법한 한마디</div>
-        <div class="quote">${esc(c.answer.quote)}</div>
-      </div>`}
-
-      <div class="trap">⚠️ ${esc(t.caution)}</div>
 
       <details class="more">
         <summary>▸ 인지기능 · 강점 · 역량 더 보기</summary>

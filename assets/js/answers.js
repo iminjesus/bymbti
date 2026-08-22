@@ -93,6 +93,7 @@ function buildAssignmentAnswer(type, analysis) {
   return {
     summary: FUNC_OUTPUT[dom],
     body,
+    why: `${dom}(${FUNCTIONS[dom].name}) 주도 — ${FUNC_APPROACH[dom]}.`,
     bullets,
     quote: `${tone.open} ${QUOTE_TEMPLATES[dom](topic)}`,
     tone: tone.style,
@@ -125,13 +126,14 @@ function buildSceneAnswer(type, analysis) {
     `그다음 ${SUPPORT_LINE[aux]}. ` +
     `${kw.join('·')}${josa(kw[kw.length - 1], '이/가')} 강한 유형이라 이 상황에서도 그게 그대로 나온다.`;
 
-  /* 접근·보완은 바로 위 본문에 그대로 들어 있어서 불릿으로 또 쓰면 중복이다.
-     선택지가 있을 때 뭘 골랐는지만 남긴다. */
-  const bullets = decision ? [{ label: '선택', text: decision.vote }] : [];
+  /* 대답 자체가 이미 고른 걸로 시작하고, 득표는 위 투표 결과 섹션에 다 있다.
+     카드 안에서 또 나열할 이유가 없다. */
+  const bullets = [];
 
   return {
     summary: decision ? decision.vote : scene.label + '에서의 반응',
     body,
+    why: `${dom}(${FUNCTIONS[dom].name}) 주도 — ${scene.approach[dom]}.`,
     bullets,
     quote: `${tone.open} ${verdict}`,
     verdict,

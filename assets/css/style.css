@@ -187,8 +187,14 @@ button.ghost:hover { border-color: var(--accent); color: var(--tx); }
 .g-SJ .grp { background: rgba(96,165,250,.16); color: var(--sj); }
 .g-SP .grp { background: rgba(251,191,36,.16); color: var(--sp); }
 
-.meme { margin: 12px 0; background: #0f1122; border-left: 3px solid var(--accent2); border-radius: 0 10px 10px 0; padding: 9px 13px; font-size: 14px; color: #ffd6ee; }
-.memetags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+/* 대답 = 밈 대사(위) + 실제 대답(아래) 한 덩어리 */
+.say {
+  background: linear-gradient(135deg, rgba(124,108,255,.20), rgba(255,122,198,.12));
+  border: 1px solid rgba(124,108,255,.38); border-radius: 12px; padding: 12px 15px;
+}
+.say-meme { font-size: 13.5px; color: #ffd6ee; padding-bottom: 9px; margin-bottom: 9px; border-bottom: 1px dashed rgba(255,255,255,.16); }
+.say-main { font-size: 15px; color: #fff; line-height: 1.7; }
+.memetags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
 .memetags span { font-size: 11.5px; color: var(--tx3); background: #1c2039; border-radius: 6px; padding: 2px 7px; }
 
 .roleline { margin-top: 13px; background: rgba(124,108,255,.12); border: 1px solid rgba(124,108,255,.32); border-radius: 11px; padding: 11px 14px; }
@@ -282,11 +288,7 @@ footer { text-align: center; color: var(--tx3); font-size: 13px; padding: 40px 2
 .vtypes span { font-size: 12px; background: #232748; border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; color: var(--tx2); }
 
 /* 일상형 카드의 대답 */
-.answer-big {
-  font-size: 15px; color: #fff; line-height: 1.7;
-  background: linear-gradient(135deg, rgba(124,108,255,.22), rgba(255,122,198,.14));
-  border: 1px solid rgba(124,108,255,.4); border-radius: 12px; padding: 13px 15px;
-}
+.why-line { margin-top: 11px; font-size: 13px; color: var(--tx2); }
 
 /* 설치형 앱(standalone)으로 열렸을 때: 노치·홈바 영역을 피한다 */
 @supports (padding: env(safe-area-inset-top)) {
