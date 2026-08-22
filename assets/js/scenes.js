@@ -87,7 +87,7 @@ function decideFor(type, options) {
   if (lp) {
     const pick = options[lp.index];
     const other = options[1 - lp.index];
-    return { pick, other, vote: pick, style: 'lean', axis: lp.axis };
+    return { pick, other, vote: pick, style: 'lean', axis: lp.axis, side: lp.side };
   }
 
   /* 내용이 중립이면(짜장면 vs 짬뽕) 성향이 아니라 스타일로 갈린다 */
@@ -1243,18 +1243,21 @@ function leanPick(type, options) {
   const pb = profileOption(options[1]);
   const lean = leanOf(type);
 
-  let diffSum = 0;
-  let best = { axis: null, gap: 0 };
-  Object.keys(OPTION_AXES).forEach((axis) => {
-    const d = pa[axis] - pb[axis];
-    if (!d) return;
-    diffSum += lean[axis] * d;
-    const gap = Math.abs(lean[axis] * d);
-    if (gap > best.gap) best = { axis, gap, dir: lean[axis] * d };
-  });
+  /* 차이가 가장 큰 축 하나로만 판정한다.
+     "증가시킨다 vs 감소시킨다"처럼 한쪽이 생략된 문장이면 첫 선택지에만 남아 있는
+     단어(일자리 등)가 다른 축을 건드려 서로 상쇄돼버린다. */
+  const diffs = Object.keys(OPTION_AXES).map((axis) => ({ axis, d: pa[axis] - pb[axis] }));
+  const maxAbs = Math.max(...diffs.map((x) => Math.abs(x.d)));
+  if (!maxAbs) return null;
 
-  if (Math.abs(diffSum) < 0.12) return null;      // 성향 차이가 미미하면 판단 보류
-  return { index: diffSum > 0 ? 0 : 1, axis: best.axis, strength: Math.abs(diffSum) };
+  const main = diffs.filter((x) => Math.abs(x.d) >= maxAbs - 1e-6);
+  const diffSum = main.reduce((sum, x) => sum + lean[x.axis] * x.d, 0);
+  const best = { axis: main[0].axis };
+
+  if (Math.abs(diffSum) < 0.10) return null;      // 성향 차이가 미미하면 판단 보류
+  const index = diffSum > 0 ? 0 : 1;
+  const side = (index === 0 ? pa : pb)[best.axis] >= (index === 0 ? pb : pa)[best.axis] ? 'pos' : 'neg';
+  return { index, axis: best.axis, side, strength: Math.abs(diffSum) };
 }
 
 /* 이 선택지 쌍이 내용으로 갈리는 축이 있는지 (있으면 그 축 이름) */
@@ -1269,3 +1272,66 @@ function decidingAxis(options) {
   });
   return best;
 }
+
+/* 축과 진영이 정해지면 그 주제에 대한 실제 논거를 댄다.
+   기능군(감각S / 직관N / 사고T / 감정F)마다 대는 근거가 다르다. */
+const FUNC_GROUP = { Se: 'S', Si: 'S', Ne: 'N', Ni: 'N', Te: 'T', Ti: 'T', Fe: 'F', Fi: 'F' };
+
+const AXIS_VERDICT = {
+  optimism: {
+    pos: {
+      N: '지금 없는 게 새로 생길 거야. 늘 그런 식으로 바뀌어 왔어.',
+      S: '이미 좋아진 사례가 있어. 그거 보고 판단하면 돼.',
+      T: '구조적으로 그쪽이 더 말이 돼. 계산해봐도 그래.',
+      F: '사람들이 결국 방법을 찾아낼 거라고 봐.',
+    },
+    neg: {
+      N: '흐름이 그쪽으로 가고 있어. 지금은 시작일 뿐이야.',
+      S: '이미 그렇게 되고 있잖아. 눈앞에 있는 게 증거야.',
+      T: '희망 섞지 말고 숫자만 보면 답 나와.',
+      F: '실제로 피해 보는 사람이 있어. 그게 제일 걸려.',
+    },
+  },
+  novelty: {
+    pos: {
+      N: '안 해봤으니까 해보는 거지. 그게 재밌기도 하고.',
+      S: '해보고 아니면 되돌리면 돼. 못 할 것도 없어.',
+      T: '기존 방식이 최적이라는 근거가 어디에도 없어.',
+      F: '새로 하면 다들 더 편해질 것 같아.',
+    },
+    neg: {
+      N: '바꿀 거면 제대로 바꿔야지, 어설프게 바꾸면 더 나빠져.',
+      S: '되던 걸 왜 건드려. 검증된 게 제일 안전해.',
+      T: '전환 비용이 이득보다 커. 계산 끝났어.',
+      F: '갑자기 바꾸면 적응 못 하는 사람이 생겨.',
+    },
+  },
+  people: {
+    pos: {
+      N: '숫자가 좋아져도 사람이 무너지면 결국 다 무너져.',
+      S: '당장 직접 피해 보는 사람이 눈에 보이잖아.',
+      T: '길게 보면 사람이 자산이야. 이건 감정 아니라 계산이야.',
+      F: '이건 양보 못 해. 사람이 먼저야.',
+    },
+    neg: {
+      N: '지금 지켜도 결국 밀려. 방향을 바꾸는 게 맞아.',
+      S: '현실적으로 안 하면 우리가 먼저 도태돼.',
+      T: '감정 빼고 보면 효율이 답이야. 냉정하게 가자.',
+      F: '마음은 알겠는데, 조직이 살아야 사람도 남아.',
+    },
+  },
+  action: {
+    pos: {
+      N: '하다 보면 길이 보여. 완벽한 시점은 안 와.',
+      S: '지금 할 수 있으면 지금 하는 게 맞아.',
+      T: '기다리는 비용이 실행 비용보다 커.',
+      F: '망설이는 동안 마음만 상해. 그냥 하자.',
+    },
+    neg: {
+      N: '지금은 때가 아니야. 좀 더 보고 움직이자.',
+      S: '준비 안 된 상태로 하면 사고 나. 순서대로 가자.',
+      T: '정보가 부족한 상태의 결정은 도박이야.',
+      F: '지금 하면 누군가는 상처받아. 시간이 좀 필요해.',
+    },
+  },
+};

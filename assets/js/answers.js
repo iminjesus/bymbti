@@ -112,14 +112,21 @@ function buildSceneAnswer(type, analysis) {
 
   /* 이 유형이 실제로 내놓는 답 */
   let verdict = scene.verdict[dom];
-  if (decision) {
-    /* 내용으로 갈린 선택이면 편을 확실히 드는 대사, 중립이면 성향 스타일 대사 */
-    const tpl = decision.style === 'lean' ? LEAN_LINE[dom] : CHOICE_LINE[dom];
-    const line = tpl
+
+  if (decision && decision.style === 'lean') {
+    /* 주제에 방향이 있으면 상황 공통 문구 대신 그 주제에 대한 실제 논거를 댄다 */
+    const line = LEAN_LINE[dom]
+      .replace(/\{PICK\}/g, decision.pick)
+      .replace(/\{OTHER\}/g, decision.other);
+    const arg = AXIS_VERDICT[decision.axis][decision.side][FUNC_GROUP[dom]];
+    verdict = `${line} ${arg}`;
+  } else if (decision) {
+    const line = CHOICE_LINE[dom]
       .replace(/\{PICK\}/g, decision.pick)
       .replace(/\{OTHER\}/g, decision.other);
     verdict = `${line} ${verdict}`;
   }
+
   verdict = `${verdict} ${(scene.tail || AUX_TAIL)[aux]}`;
 
   const kw = type.keywords.slice(0, 2);
@@ -135,7 +142,9 @@ function buildSceneAnswer(type, analysis) {
   return {
     summary: decision ? decision.vote : scene.label + '에서의 반응',
     body,
-    why: `${dom}(${FUNCTIONS[dom].name}) 주도 — ${scene.approach[dom]}.`,
+    why: decision && decision.style === 'lean'
+      ? `${dom}(${FUNCTIONS[dom].name}) 주도 — ${AXIS_REASON[decision.axis][decision.side]}.`
+      : `${dom}(${FUNCTIONS[dom].name}) 주도 — ${scene.approach[dom]}.`,
     bullets,
     quote: `${tone.open} ${verdict}`,
     verdict,
@@ -161,6 +170,9 @@ const QUOTE_TEMPLATES = {
 /* 밈 대사: 상황이 잡혔으면 그 상황용 대사로, 없으면 유형 기본 대사로 */
 function memeFor(type, analysis) {
   if (analysis.isAssignment) return type.meme;
+  /* 주제에 방향이 있는 찬반이면 상황 밈("전에 비슷한 거 골랐을 때 기록 있어")이
+     모든 주제에서 똑같이 나온다. 이럴 땐 유형 고유 밈이 더 맞는다. */
+  if (analysis.options && decidingAxis(analysis.options)) return type.meme;
   const pack = SCENE_MEMES[analysis.scene.id];
   return (pack && pack[type.code]) || type.meme;
 }
