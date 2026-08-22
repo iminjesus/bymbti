@@ -145,6 +145,19 @@ function analyzeQuestion(text) {
   const options = isAssignment ? null : extractOptions(q);
   const pick = isAssignment ? null : detectNumberPick(q);
 
+  /* 같은 편을 든 유형끼리 논거가 겹치지 않게, 진영 안에서의 순번을 매겨둔다 */
+  const voteRank = {};
+  if (options) {
+    const seen = {};
+    MBTI.forEach((t) => {
+      const d = decideFor(t, options);
+      const key = `${d.vote}|${t.code[2]}`;   // 진영 × T/F 안에서의 순번
+      seen[key] = (seen[key] || 0);
+      voteRank[t.code] = seen[key];
+      seen[key] += 1;
+    });
+  }
+
 
   /* 1) 과제라면 어떤 유형의 과제인지 */
   const kindHits = !isAssignment ? [] : TASK_KINDS.map((k) => {
@@ -211,6 +224,7 @@ function analyzeQuestion(text) {
     roleLookup,
     options,
     pick,
+    voteRank,
     kinds,
     kindLabel: isAssignment ? (primary ? primary.label : '일반 탐구형 과제') : scene.label,
     kindEmoji: isAssignment ? (primary ? primary.emoji : '🧭') : scene.emoji,

@@ -120,7 +120,8 @@ function buildSceneAnswer(type, analysis) {
     const line = pickVariant(LEAN_LINE[dom], `${V}lean`)
       .replace(/\{PICK\}/g, decision.pick)
       .replace(/\{OTHER\}/g, decision.other);
-    const arg = pickVariant(AXIS_VERDICT[decision.axis][decision.side][FUNC_GROUP[dom]], `${V}arg`);
+    const rank = (analysis.voteRank && analysis.voteRank[V]) || 0;
+    const arg = pickByRank(AXIS_VERDICT[decision.axis][decision.side], rank, type.code[2] === 'T');
     verdict = `${line} ${arg}`;
   } else if (decision) {
     const line = pickVariant(CHOICE_LINE[dom], `${V}choice`)
@@ -129,8 +130,15 @@ function buildSceneAnswer(type, analysis) {
     verdict = `${line} ${verdict}`;
   }
 
+  /* 앞말 · 말버릇 · 끝맺음을 매번 다른 순서로 붙여 문장 모양 자체를 바꾼다 */
   const opener = pickVariant(OPENERS, `${V}open`);
-  verdict = `${opener}${verdict} ${pickVariant((scene.tail || AUX_TAIL)[aux], `${V}tail`)}`;
+  const tail = pickVariant((scene.tail || AUX_TAIL)[aux], `${V}tail`);
+  const quirk = pickVariant(TYPE_QUIRK[V], `${V}quirk`);
+  const shape = hashCode(`${V}shape|${VARIANT_SEED}`) % 3;
+  const parts = shape === 0 ? [verdict, tail]
+    : shape === 1 ? [verdict, quirk, tail]
+      : [verdict, tail, quirk];
+  verdict = `${opener}${parts.join(' ')}`;
 
   const kw = type.keywords.slice(0, 2);
   const body =
